@@ -484,14 +484,14 @@ export const ChatInterface = ({
     >
       {/* Messages */}
       <ScrollArea className="flex-1 p-6">
-        <div className="space-y-6 max-w-3xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto w-full px-4">
           {messages.map((message, index) => (
             <div
               key={index}
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl p-4 ${
+                className={`max-w-3xl rounded-2xl p-4 ${
                   message.role === "user"
                     ? "bg-primary text-primary-foreground ml-auto"
                     : "bg-card border border-border/50"
@@ -523,7 +523,7 @@ export const ChatInterface = ({
 
       {/* Input Area */}
       <div className="p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto w-full px-4">
           {selectedFiles.length > 0 && (
             <div className="mb-3 space-y-2">
               {selectedFiles.map((file, index) => (
