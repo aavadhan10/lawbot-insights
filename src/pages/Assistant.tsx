@@ -160,7 +160,7 @@ export default function Assistant() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
         <h1 className="text-3xl font-semibold">Briefly AI Assistant</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
             <MessageSquare className="w-4 h-4 mr-2" />
             History
@@ -168,22 +168,6 @@ export default function Assistant() {
           <Button variant="ghost" size="sm" onClick={() => setFeedbackModalOpen(true)}>
             <Sparkles className="w-4 h-4 mr-2" />
             Feedback
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => { 
-              setConversationId(null); 
-              setInitialPrompt(""); 
-              setSelectedDocuments([]);
-              localStorage.removeItem('lastConversationId');
-              scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="font-medium"
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            New thread
           </Button>
         </div>
       </div>
@@ -194,6 +178,15 @@ export default function Assistant() {
         <div className="px-6 py-4 border-b flex-shrink-0">
           <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center gap-2 flex-wrap">
+              <Button onClick={() => { 
+                setConversationId(null); 
+                setInitialPrompt(""); 
+                setSelectedDocuments([]);
+                localStorage.removeItem('lastConversationId');
+              }}>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                New Chat
+              </Button>
               <Button variant="outline" onClick={() => setPromptLibraryOpen(true)}>
                 <List className="w-4 h-4 mr-2" />
                 Browse Prompts
@@ -213,7 +206,6 @@ export default function Assistant() {
               {/* Left Column - Chat Interface */}
               <div className="min-w-0 flex flex-col overflow-hidden">
                 <LegalChatInterface
-                  key={conversationId || 'new-thread'}
                   conversationId={conversationId}
                   onConversationCreated={setConversationId}
                   selectedDocuments={selectedDocuments}
