@@ -3,6 +3,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
+import ListItem from '@tiptap/extension-list-item';
 import { useEffect, useImperativeHandle, forwardRef } from 'react';
 import { formatDocumentContent } from '@/utils/formatDocument';
 
@@ -26,15 +29,19 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
           heading: {
             levels: [1, 2, 3],
           },
-          bulletList: {
-            keepMarks: true,
-            keepAttributes: false,
-          },
-          orderedList: {
-            keepMarks: true,
-            keepAttributes: false,
-          },
+          bulletList: false,
+          orderedList: false,
+          listItem: false,
         }),
+        BulletList.configure({
+          keepMarks: true,
+          keepAttributes: false,
+        }),
+        OrderedList.configure({
+          keepMarks: true,
+          keepAttributes: false,
+        }),
+        ListItem,
         Link.configure({
           openOnClick: false,
           HTMLAttributes: {
