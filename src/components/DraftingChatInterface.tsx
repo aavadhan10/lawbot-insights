@@ -726,6 +726,7 @@ export const DraftingChatInterface = ({
         onPromptSelected={(prompt) => {
           setInput(prompt);
         }}
+        selectedDocuments={uploadedFile ? [{ filename: uploadedFile.name }] : []}
       />
     </div>
   );

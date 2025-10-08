@@ -5,14 +5,16 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { promptLibrary, PromptTemplate } from "@/types/prompts";
+import { replacePlaceholders } from "@/utils/promptPlaceholders";
 
 interface PromptLibraryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPromptSelected: (prompt: string) => void;
+  selectedDocuments?: any[];
 }
 
-export const PromptLibraryDialog = ({ open, onOpenChange, onPromptSelected }: PromptLibraryDialogProps) => {
+export const PromptLibraryDialog = ({ open, onOpenChange, onPromptSelected, selectedDocuments = [] }: PromptLibraryDialogProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -26,7 +28,9 @@ export const PromptLibraryDialog = ({ open, onOpenChange, onPromptSelected }: Pr
   });
 
   const handleSelectPrompt = (template: PromptTemplate) => {
-    onPromptSelected(template.template);
+    // Replace placeholders with smart values based on context
+    const processedPrompt = replacePlaceholders(template.template, selectedDocuments);
+    onPromptSelected(processedPrompt);
     onOpenChange(false);
   };
 
