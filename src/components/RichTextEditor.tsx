@@ -4,6 +4,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { formatDocumentContent } from '@/utils/formatDocument';
 
 interface RichTextEditorProps {
   content: string;
@@ -17,11 +18,21 @@ export interface RichTextEditorRef {
 
 export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
   ({ content, onChange, editable = true }, ref) => {
+    const formattedContent = formatDocumentContent(content);
+    
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
           heading: {
             levels: [1, 2, 3],
+          },
+          bulletList: {
+            keepMarks: true,
+            keepAttributes: false,
+          },
+          orderedList: {
+            keepMarks: true,
+            keepAttributes: false,
           },
         }),
         Link.configure({
@@ -35,14 +46,14 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
           types: ['heading', 'paragraph'],
         }),
       ],
-      content,
+      content: formattedContent,
       editable,
       onUpdate: ({ editor }) => {
         onChange(editor.getHTML());
       },
       editorProps: {
         attributes: {
-          class: 'prose prose-base max-w-none focus:outline-none min-h-[500px] prose-headings:font-semibold prose-headings:tracking-tight prose-h1:text-3xl prose-h1:mb-4 prose-h2:text-2xl prose-h2:mb-3 prose-h3:text-xl prose-h3:mb-2 prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-strong:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline',
+          class: 'prose prose-lg max-w-none focus:outline-none min-h-[500px] prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h1:mb-6 prose-h1:mt-8 prose-h2:text-3xl prose-h2:mb-5 prose-h2:mt-7 prose-h3:text-2xl prose-h3:mb-4 prose-h3:mt-6 prose-p:text-base prose-p:leading-relaxed prose-p:mb-6 prose-p:text-foreground prose-ul:my-6 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-6 prose-ol:list-decimal prose-ol:pl-6 prose-li:my-2 prose-li:text-base prose-li:leading-relaxed prose-strong:font-bold prose-strong:text-foreground prose-em:italic prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic',
         },
       },
     });
@@ -53,7 +64,8 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
 
     useEffect(() => {
       if (editor && content !== editor.getHTML()) {
-        editor.commands.setContent(content);
+        const formatted = formatDocumentContent(content);
+        editor.commands.setContent(formatted);
       }
     }, [content, editor]);
 

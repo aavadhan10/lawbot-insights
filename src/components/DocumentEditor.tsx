@@ -353,7 +353,7 @@ export const DocumentEditor = ({
       {/* Document Content with Paper-like Feel */}
       <div className="flex-1 overflow-hidden bg-muted/20">
         <ScrollArea className="h-full">
-          <div className="p-8 sm:p-12 max-w-4xl mx-auto">
+          <div className="p-8 sm:p-12 max-w-5xl mx-auto">
             {isGenerating ? (
               <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mb-4" />
@@ -361,7 +361,7 @@ export const DocumentEditor = ({
                 <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
               </div>
             ) : content ? (
-              <div className="bg-background rounded-lg shadow-sm border p-8 sm:p-12 min-h-[calc(100vh-16rem)]">
+              <div className="bg-background rounded-xl shadow-lg border p-10 sm:p-16 min-h-[calc(100vh-16rem)]">
                 <div className={showEdits ? 'relative' : ''}>
                   <RichTextEditor 
                     ref={editorRef}
@@ -383,7 +383,7 @@ export const DocumentEditor = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-96 bg-background rounded-lg shadow-sm border">
+              <div className="flex flex-col items-center justify-center h-96 bg-background rounded-xl shadow-lg border">
                 <FileText className="h-16 w-16 text-muted-foreground/40 mb-4" />
                 <h2 className="text-2xl font-semibold text-foreground mb-2">Start Your Document</h2>
                 <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
