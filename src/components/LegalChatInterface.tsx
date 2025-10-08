@@ -589,25 +589,25 @@ export const LegalChatInterface = ({
 
   return (
     <div 
-      className={`flex flex-col h-full rounded-xl border bg-card shadow-xl transition-all ${
-        isDragging ? "border-primary border-2 bg-primary/5" : "border-border/50"
+      className={`flex flex-col h-full transition-all ${
+        isDragging ? "border-2 border-primary bg-primary/5 rounded-xl" : ""
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <ScrollArea className="flex-1 p-6" ref={scrollAreaRef} onScrollCapture={handleScroll}>
-        <div className="space-y-6">
+      <ScrollArea className="flex-1 px-4 py-6" ref={scrollAreaRef} onScrollCapture={handleScroll}>
+        <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message, index) => (
             <div
               key={index}
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-full md:max-w-[90%] rounded-2xl p-4 ${
+                className={`max-w-[85%] rounded-2xl p-4 ${
                   message.role === "user"
-                    ? "bg-primary text-primary-foreground ml-auto"
-                    : "bg-card border border-border/50"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50"
                 }`}
               >
                 {message.role === "assistant" && (
@@ -645,7 +645,7 @@ export const LegalChatInterface = ({
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-card border border-border/50 rounded-2xl p-4">
+              <div className="bg-muted/50 rounded-2xl p-4">
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   <span className="text-sm text-muted-foreground">Analyzing...</span>
@@ -679,7 +679,8 @@ export const LegalChatInterface = ({
         </div>
       )}
 
-      <div className="p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
+      <div className="border-t">
+        <div className="max-w-4xl mx-auto px-4 py-4">
         <div>
           {/* Attached Repository Documents */}
           {selectedDocuments.length > 0 && (
@@ -787,6 +788,7 @@ export const LegalChatInterface = ({
             <span>Powered by Gemini 2.5 Flash</span>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Save Conversation Dialog */}
