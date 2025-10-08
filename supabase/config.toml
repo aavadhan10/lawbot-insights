@@ -1,0 +1,16 @@
+project_id = "rjdxurhnegmomysonpxz"
+
+[functions.analyze-data]
+verify_jwt = false
+
+[functions.embed-document]
+verify_jwt = false
+
+[functions.legal-chat]
+verify_jwt = false
+
+[functions.parse-document]
+verify_jwt = false
+
+[functions.draft-document]
+verify_jwt = true
