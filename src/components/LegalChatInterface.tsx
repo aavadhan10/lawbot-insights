@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Send, Loader2, Paperclip, X, Sparkles, FileText, Save } from "lucide-react";
+import { Send, Loader2, Paperclip, X, Sparkles, FileText, Save, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -44,11 +44,19 @@ export const LegalChatInterface = ({
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [conversationTitle, setConversationTitle] = useState("");
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    setTimeout(() => {
+      scrollRef.current?.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "end",
+        inline: "nearest" 
+      });
+    }, 100);
   }, [messages]);
 
   useEffect(() => {
@@ -545,6 +553,16 @@ export const LegalChatInterface = ({
     setShowSaveDialog(true);
   };
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+    setShowScrollButton(!isNearBottom);
+  };
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  };
+
   return (
     <div 
       className={`flex flex-col h-full rounded-xl border bg-card shadow-xl transition-all ${
@@ -554,7 +572,7 @@ export const LegalChatInterface = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className="flex-1 p-6" ref={scrollAreaRef} onScrollCapture={handleScroll}>
         <div className="space-y-6">
           {messages.map((message, index) => (
             <div
@@ -622,6 +640,20 @@ export const LegalChatInterface = ({
           <div ref={scrollRef} />
         </div>
       </ScrollArea>
+
+      {showScrollButton && (
+        <div className="flex justify-center px-4 pt-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={scrollToBottom}
+            className="shadow-lg"
+          >
+            <ChevronDown className="w-4 h-4 mr-1" />
+            Scroll to bottom
+          </Button>
+        </div>
+      )}
 
       <div className="p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
         <div>

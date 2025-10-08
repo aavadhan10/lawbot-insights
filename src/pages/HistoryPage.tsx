@@ -20,6 +20,7 @@ interface Conversation {
   title: string;
   created_at: string;
   updated_at: string;
+  conversation_type?: string;
   messages?: Message[];
 }
 
@@ -108,7 +109,7 @@ export default function HistoryPage() {
 
   const handleOpenConversation = (conversation: Conversation) => {
     localStorage.setItem('lastConversationId', conversation.id);
-    const route = (conversation as any).conversation_type === 'drafter' ? '/drafter' : '/assistant';
+    const route = conversation.conversation_type === 'drafter' ? '/drafter' : '/assistant';
     navigate(route);
   };
 
