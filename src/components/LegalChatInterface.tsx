@@ -10,6 +10,7 @@ import { Send, Loader2, Paperclip, X, Sparkles, FileText, Save, ChevronDown } fr
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import * as XLSX from "xlsx";
 
 interface Message {
   role: "user" | "assistant";
@@ -255,11 +256,38 @@ export const LegalChatInterface = ({
   const extractTextFromFile = async (file: File): Promise<string> => {
     try {
       // For TXT and CSV files, read directly
-      if (file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+      if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.csv')) {
         return await file.text();
       }
-      
-      // For PDF, DOCX, and Excel files, use the parse-document edge function
+
+      // Excel: parse client-side to avoid backend limitations
+      if (/\.(xlsx|xls)$/i.test(file.name)) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const sheets = workbook.SheetNames;
+          let aggregated = '';
+          for (const name of sheets) {
+            const ws = workbook.Sheets[name];
+            if (!ws) continue;
+            const csv = XLSX.utils.sheet_to_csv(ws);
+            if (csv.trim().length === 0) continue;
+            aggregated += `Sheet: ${name}\n${csv}\n\n`;
+          }
+          if (!aggregated) {
+            toast.warning(`${file.name} appears to contain no readable cells`);
+            return `[Document: ${file.name} - No content extracted]`;
+          }
+          toast.success(`Converted ${file.name} from Excel`);
+          return aggregated.trim();
+        } catch (excelErr) {
+          console.error('Excel parse error:', excelErr);
+          toast.error(`Couldn't read ${file.name}. Try saving as CSV and re-uploading.`);
+          return `[Document: ${file.name} - Error: Excel parsing failed]`;
+        }
+      }
+
+      // For PDF and DOCX, use the parse-document edge function
       const formData = new FormData();
       formData.append('file', file);
       
