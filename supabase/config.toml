@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.draft-document]
 verify_jwt = true
+
+[functions.import-cuad-batch]
+verify_jwt = false
+
+[functions.check-vectorization-status]
+verify_jwt = false

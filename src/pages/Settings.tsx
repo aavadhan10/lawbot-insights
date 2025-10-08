@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { User, Building2, LogOut, Mail } from "lucide-react";
+import { CuadImportButton } from "@/components/CuadImportButton";
 
 export default function Settings() {
   const { userRole } = useOrganization();
@@ -144,6 +145,9 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* CUAD Dataset Import */}
+          <CuadImportButton />
 
           <Separator />
 
