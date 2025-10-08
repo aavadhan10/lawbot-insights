@@ -51,16 +51,27 @@ export const LegalChatInterface = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isStreamingRef = useRef(false);
 
+  // Auto-scroll during streaming (ChatGPT-like behavior)
   useEffect(() => {
-    setTimeout(() => {
+    const scrollToBottom = () => {
       scrollRef.current?.scrollIntoView({ 
-        behavior: "smooth", 
+        behavior: "instant",
         block: "end",
         inline: "nearest" 
       });
-    }, 100);
-  }, [messages]);
+    };
+
+    // Scroll immediately when messages change
+    scrollToBottom();
+    
+    // If streaming, keep scrolling as content appears
+    if (isLoading && isStreamingRef.current) {
+      const scrollInterval = setInterval(scrollToBottom, 50);
+      return () => clearInterval(scrollInterval);
+    }
+  }, [messages, isLoading]);
 
   useEffect(() => {
     if (conversationId) {
@@ -478,6 +489,7 @@ export const LegalChatInterface = ({
       let streamDone = false;
       let assistantMessage = "";
 
+      isStreamingRef.current = true;
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
       while (!streamDone) {
@@ -528,6 +540,7 @@ export const LegalChatInterface = ({
         await saveMessage(convId, "assistant", assistantMessage);
       }
 
+      isStreamingRef.current = false;
       setIsLoading(false);
       setAbortController(null);
     } catch (error) {
