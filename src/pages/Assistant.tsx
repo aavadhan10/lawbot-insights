@@ -213,6 +213,7 @@ export default function Assistant() {
               {/* Left Column - Chat Interface */}
               <div className="min-w-0 flex flex-col overflow-hidden">
                 <LegalChatInterface
+                  key={conversationId || 'new-thread'}
                   conversationId={conversationId}
                   onConversationCreated={setConversationId}
                   selectedDocuments={selectedDocuments}
