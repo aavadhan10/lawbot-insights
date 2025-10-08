@@ -23,12 +23,14 @@ interface DraftingChatInterfaceProps {
   onDocumentGenerated: (content: string, changes?: any[], draftId?: string) => void;
   onGeneratingChange: (isGenerating: boolean) => void;
   selectedDraftId?: string;
+  onDocumentNameChange?: (name: string) => void;
 }
 
 export const DraftingChatInterface = ({ 
   onDocumentGenerated,
   onGeneratingChange,
-  selectedDraftId 
+  selectedDraftId,
+  onDocumentNameChange 
 }: DraftingChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -655,7 +657,10 @@ export const DraftingChatInterface = ({
           <input
             type="text"
             value={documentName}
-            onChange={(e) => setDocumentName(e.target.value)}
+            onChange={(e) => {
+              setDocumentName(e.target.value);
+              onDocumentNameChange?.(e.target.value || "New Document");
+            }}
             placeholder="New Document"
             className="w-full px-3 py-2 text-sm bg-background border rounded-lg outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all placeholder:text-muted-foreground"
             disabled={isLoading}

@@ -93,6 +93,7 @@ const DocumentDrafter = () => {
               onDocumentGenerated={handleDocumentGenerated}
               onGeneratingChange={setIsGenerating}
               selectedDraftId={selectedDraftId}
+              onDocumentNameChange={setDocumentTitle}
             />
           </ResizablePanel>
           
