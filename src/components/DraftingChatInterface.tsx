@@ -34,6 +34,7 @@ export const DraftingChatInterface = ({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentDraftTitle, setCurrentDraftTitle] = useState("");
+  const [documentName, setDocumentName] = useState("");
   const [steps, setSteps] = useState<Step[]>([]);
   const [showSteps, setShowSteps] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; content: string } | null>(null);
@@ -490,7 +491,7 @@ export const DraftingChatInterface = ({
 
   const saveDraft = async (prompt: string, content: string, mode: string) => {
     try {
-      const title = currentDraftTitle || prompt.slice(0, 100);
+      const title = documentName || currentDraftTitle || prompt.slice(0, 100);
       const documentType = mode === 'redline' ? 'Redlined Document' : 'New Document';
 
       const { data, error } = await supabase
@@ -645,8 +646,23 @@ export const DraftingChatInterface = ({
       </div>
 
       {/* Enhanced Input Area */}
-      <div className="border-t p-4 bg-background">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="border-t p-4 bg-background space-y-3">
+        {/* Document Name Input */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            Document Name
+          </label>
+          <input
+            type="text"
+            value={documentName}
+            onChange={(e) => setDocumentName(e.target.value)}
+            placeholder="New Document"
+            className="w-full px-3 py-2 text-sm bg-background border rounded-lg outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all placeholder:text-muted-foreground"
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -678,6 +694,7 @@ export const DraftingChatInterface = ({
             </div>
           )}
         </div>
+        
         <div className="flex items-end gap-2 p-3 border rounded-lg bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all">
           <input
             type="text"
