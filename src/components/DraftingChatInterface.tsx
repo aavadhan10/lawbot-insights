@@ -204,6 +204,33 @@ export const DraftingChatInterface = ({
           .eq('id', currentDraftId);
 
         if (error) throw error;
+
+        // Save a version snapshot
+        const { data: draftData } = await supabase
+          .from('document_drafts')
+          .select('current_version')
+          .eq('id', currentDraftId)
+          .single();
+
+        if (draftData) {
+          const nextVersion = (draftData.current_version || 0) + 1;
+          
+          // Save to draft_versions table
+          await supabase
+            .from('draft_versions')
+            .insert({
+              draft_id: currentDraftId,
+              version_number: nextVersion,
+              content: { text: content, changes: [] },
+              changes_summary: `Auto-saved on ${new Date().toLocaleString()}`,
+            });
+
+          // Update current_version in document_drafts
+          await supabase
+            .from('document_drafts')
+            .update({ current_version: nextVersion })
+            .eq('id', currentDraftId);
+        }
       } else {
         // Create new draft
         const { data, error } = await supabase
@@ -216,6 +243,7 @@ export const DraftingChatInterface = ({
             content: { text: content, changes: [] },
             conversation_id: currentConversationId,
             status: 'draft',
+            current_version: 1,
           })
           .select()
           .single();
@@ -225,6 +253,16 @@ export const DraftingChatInterface = ({
         if (data?.id) {
           setCurrentDraftId(data.id);
           onDocumentGenerated(content, [], data.id);
+
+          // Save initial version
+          await supabase
+            .from('draft_versions')
+            .insert({
+              draft_id: data.id,
+              version_number: 1,
+              content: { text: content, changes: [] },
+              changes_summary: 'Initial version',
+            });
         }
       }
       

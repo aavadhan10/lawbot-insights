@@ -24,16 +24,29 @@ interface Conversation {
   messages?: Message[];
 }
 
+interface Draft {
+  id: string;
+  title: string;
+  document_type: string;
+  created_at: string;
+  updated_at: string;
+  current_version: number;
+  conversation_id?: string;
+}
+
 export default function HistoryPage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [expandedConvId, setExpandedConvId] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'conversations' | 'drafts'>('conversations');
 
   useEffect(() => {
     loadConversations();
+    loadDrafts();
   }, []);
 
   const loadConversations = async () => {
@@ -54,6 +67,21 @@ export default function HistoryPage() {
     }
   };
 
+  const loadDrafts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("document_drafts")
+        .select("id, title, document_type, created_at, updated_at, current_version, conversation_id")
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      setDrafts(data || []);
+    } catch (error: any) {
+      console.error("Error loading drafts:", error);
+      toast.error("Failed to load drafts");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase
@@ -68,6 +96,23 @@ export default function HistoryPage() {
     } catch (error: any) {
       console.error("Error deleting conversation:", error);
       toast.error("Failed to delete conversation");
+    }
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("document_drafts")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setDrafts(drafts.filter(d => d.id !== id));
+      toast.success("Draft deleted");
+    } catch (error: any) {
+      console.error("Error deleting draft:", error);
+      toast.error("Failed to delete draft");
     }
   };
 
@@ -113,18 +158,30 @@ export default function HistoryPage() {
     navigate(route);
   };
 
+  const handleOpenDraft = (draft: Draft) => {
+    localStorage.setItem('selectedDraftId', draft.id);
+    if (draft.conversation_id) {
+      localStorage.setItem('lastConversationId', draft.conversation_id);
+    }
+    navigate('/drafter');
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDrafts = drafts.filter(draft =>
+    draft.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h1 className="text-2xl font-semibold">Conversation History</h1>
+        <h1 className="text-2xl font-semibold">History</h1>
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search conversations..."
+            placeholder={`Search ${activeTab}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 w-64"
@@ -132,10 +189,26 @@ export default function HistoryPage() {
         </div>
       </div>
 
+      <div className="flex gap-2 px-6 py-3 border-b">
+        <Button
+          variant={activeTab === 'conversations' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('conversations')}
+        >
+          Conversations
+        </Button>
+        <Button
+          variant={activeTab === 'drafts' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('drafts')}
+        >
+          Document Drafts
+        </Button>
+      </div>
+
       <div className="flex-1 overflow-auto px-6 py-6">
-        {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading...</div>
-        ) : filteredConversations.length === 0 ? (
+        {activeTab === 'conversations' ? (
+          isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+          ) : filteredConversations.length === 0 ? (
           <div className="text-center py-12">
             <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-xl font-semibold mb-2">
@@ -259,7 +332,83 @@ export default function HistoryPage() {
               ))}
             </TableBody>
           </Table>
-        )}
+        )
+      ) : (
+        // Drafts tab
+        isLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        ) : filteredDrafts.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">
+              {searchQuery ? "No drafts found" : "No drafts yet"}
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              {searchQuery ? "Try a different search term" : "Start drafting documents to see them here"}
+            </p>
+            {!searchQuery && (
+              <Button onClick={() => navigate('/drafter')}>
+                Start Drafting
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Version</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Last Updated</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredDrafts.map((draft) => (
+                <TableRow key={draft.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                      <span 
+                        className="cursor-pointer hover:underline"
+                        onClick={() => handleOpenDraft(draft)}
+                      >
+                        {draft.title}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{draft.document_type}</TableCell>
+                  <TableCell>v{draft.current_version}</TableCell>
+                  <TableCell>{formatDistanceToNow(new Date(draft.created_at), { addSuffix: true })}</TableCell>
+                  <TableCell>{formatDistanceToNow(new Date(draft.updated_at), { addSuffix: true })}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenDraft(draft)}
+                      >
+                        Open Draft
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDraft(draft.id);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )
+      )}
       </div>
     </div>
   );

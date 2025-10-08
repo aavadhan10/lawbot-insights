@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { DraftingChatInterface } from "@/components/DraftingChatInterface";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import { DraftsList } from "@/components/DraftsList";
+import { DraftVersionHistory } from "@/components/DraftVersionHistory";
 import { useToast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
@@ -15,6 +16,15 @@ const DocumentDrafter = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
   const { toast } = useToast();
+
+  // Check localStorage for selectedDraftId on mount
+  useEffect(() => {
+    const storedDraftId = localStorage.getItem('selectedDraftId');
+    if (storedDraftId) {
+      setSelectedDraftId(storedDraftId);
+      localStorage.removeItem('selectedDraftId');
+    }
+  }, []);
 
   // Typing animation effect
   useEffect(() => {
@@ -86,10 +96,22 @@ const DocumentDrafter = () => {
     setSelectedConversationId(conversationId);
   };
 
+  const handleRestoreVersion = (content: any) => {
+    setDocumentContent(content.text || content);
+    toast({
+      title: "Version Restored",
+      description: "The document has been restored to the selected version.",
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="border-b px-6 py-3 flex-shrink-0 bg-card">
+      <div className="border-b px-6 py-3 flex-shrink-0 bg-card flex items-center justify-between">
         <h1 className="text-xl font-semibold">Document Drafter</h1>
+        <DraftVersionHistory 
+          draftId={currentDraftId || ''} 
+          onRestoreVersion={handleRestoreVersion}
+        />
       </div>
 
       <div className="flex-1 overflow-hidden">
