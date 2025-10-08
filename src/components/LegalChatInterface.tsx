@@ -21,6 +21,7 @@ interface LegalChatInterfaceProps {
   conversationId: string | null;
   onConversationCreated: (id: string) => void;
   selectedDocuments?: any[];
+  onRemoveDocument?: (docId: string) => void;
   initialPrompt?: string;
 }
 
@@ -28,6 +29,7 @@ export const LegalChatInterface = ({
   conversationId,
   onConversationCreated,
   selectedDocuments = [],
+  onRemoveDocument,
   initialPrompt = ""
 }: LegalChatInterfaceProps) => {
   const { userRole } = useOrganization();
@@ -694,6 +696,15 @@ export const LegalChatInterface = ({
                   <span className="text-sm flex-1 text-purple-900 dark:text-purple-100">
                     {doc.filename}
                   </span>
+                  {onRemoveDocument && (
+                    <button
+                      onClick={() => onRemoveDocument(doc.id)}
+                      className="p-1 hover:bg-purple-200 dark:hover:bg-purple-900 rounded transition-colors"
+                      title="Remove document"
+                    >
+                      <X className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

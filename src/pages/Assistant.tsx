@@ -135,6 +135,10 @@ export default function Assistant() {
     setSelectedDocuments(documents);
   };
 
+  const handleRemoveDocument = (docId: string) => {
+    setSelectedDocuments(prev => prev.filter(doc => doc.id !== docId));
+  };
+
   const handleWorkflowClick = (workflowTitle: string) => {
     const prompts: Record<string, string> = {
       "Summarize Document": "Please summarize this document, focusing on key legal issues, parties involved, and critical dates.",
@@ -205,6 +209,7 @@ export default function Assistant() {
                   conversationId={conversationId}
                   onConversationCreated={setConversationId}
                   selectedDocuments={selectedDocuments}
+                  onRemoveDocument={handleRemoveDocument}
                   initialPrompt={initialPrompt}
                 />
               </div>
