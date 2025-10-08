@@ -12,6 +12,7 @@ const DocumentDrafter = () => {
   const [documentChanges, setDocumentChanges] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string>();
+  const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
   const { toast } = useToast();
 
@@ -80,6 +81,11 @@ const DocumentDrafter = () => {
     }
   };
 
+  const handleSelectDraft = (draftId: string, conversationId?: string) => {
+    setSelectedDraftId(draftId);
+    setSelectedConversationId(conversationId);
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       <div className="border-b px-6 py-3 flex-shrink-0 bg-card">
@@ -88,18 +94,28 @@ const DocumentDrafter = () => {
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
+          <ResizablePanel defaultSize={15} minSize={10} maxSize={25}>
+            <DraftsList
+              onSelectDraft={handleSelectDraft}
+              selectedDraftId={selectedDraftId}
+            />
+          </ResizablePanel>
+
+          <ResizableHandle />
+
           <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
             <DraftingChatInterface
               onDocumentGenerated={handleDocumentGenerated}
               onGeneratingChange={setIsGenerating}
               selectedDraftId={selectedDraftId}
+              selectedConversationId={selectedConversationId}
               onDocumentNameChange={setDocumentTitle}
             />
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
-          <ResizablePanel defaultSize={75} minSize={50}>
+          <ResizablePanel defaultSize={60} minSize={40}>
             <div className="h-full">
               <DocumentEditor
                 content={displayedContent}

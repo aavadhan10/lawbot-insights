@@ -93,6 +93,7 @@ export type Database = {
       document_drafts: {
         Row: {
           content: Json
+          conversation_id: string | null
           created_at: string
           current_version: number
           document_type: string
@@ -106,6 +107,7 @@ export type Database = {
         }
         Insert: {
           content?: Json
+          conversation_id?: string | null
           created_at?: string
           current_version?: number
           document_type: string
@@ -119,6 +121,7 @@ export type Database = {
         }
         Update: {
           content?: Json
+          conversation_id?: string | null
           created_at?: string
           current_version?: number
           document_type?: string
@@ -130,7 +133,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "document_drafts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_versions: {
         Row: {

@@ -23,6 +23,7 @@ interface DraftingChatInterfaceProps {
   onDocumentGenerated: (content: string, changes?: any[], draftId?: string) => void;
   onGeneratingChange: (isGenerating: boolean) => void;
   selectedDraftId?: string;
+  selectedConversationId?: string;
   onDocumentNameChange?: (name: string) => void;
 }
 
@@ -30,6 +31,7 @@ export const DraftingChatInterface = ({
   onDocumentGenerated,
   onGeneratingChange,
   selectedDraftId,
+  selectedConversationId,
   onDocumentNameChange 
 }: DraftingChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -43,7 +45,11 @@ export const DraftingChatInterface = ({
   const [showFileDialog, setShowFileDialog] = useState(false);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { userRole, loading } = useOrganization();
@@ -56,11 +62,13 @@ export const DraftingChatInterface = ({
   useEffect(() => {
     if (selectedDraftId) {
       loadDraft(selectedDraftId);
+    } else if (selectedConversationId) {
+      setCurrentConversationId(selectedConversationId);
     } else if (user && userRole?.organization.id) {
       // Create a new conversation for this drafting session
       createNewConversation();
     }
-  }, [selectedDraftId, user, userRole]);
+  }, [selectedDraftId, selectedConversationId, user, userRole]);
 
   useEffect(() => {
     if (currentConversationId && user) {
@@ -68,6 +76,24 @@ export const DraftingChatInterface = ({
       loadConversationMessages();
     }
   }, [currentConversationId]);
+
+  // Auto-save when document name changes and content exists
+  useEffect(() => {
+    if (documentName && messages.length > 0) {
+      // Debounce save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        autoSaveDraft();
+      }, 2000); // Save 2 seconds after user stops typing
+    }
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [documentName]);
 
   const createNewConversation = async () => {
     if (!user || !userRole?.organization.id) return;
@@ -104,6 +130,7 @@ export const DraftingChatInterface = ({
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      
       if (data) {
         setMessages(data.map(msg => ({
           role: msg.role as 'user' | 'assistant',
@@ -112,6 +139,100 @@ export const DraftingChatInterface = ({
       }
     } catch (error) {
       console.error('Error loading messages:', error);
+    }
+  };
+
+  const loadDraft = async (draftId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('document_drafts')
+        .select('*, conversation_id')
+        .eq('id', draftId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setCurrentDraftId(data.id);
+        setDocumentName(data.title);
+        setCurrentDraftTitle(data.title);
+        
+        // Load the conversation if it exists
+        if (data.conversation_id) {
+          setCurrentConversationId(data.conversation_id);
+        }
+
+        // Load the document content
+        const contentData = data.content as any;
+        const content = typeof contentData === 'string' 
+          ? contentData 
+          : contentData?.text || '';
+        
+        onDocumentGenerated(content, contentData?.changes || [], data.id);
+        onDocumentNameChange?.(data.title);
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load draft",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const autoSaveDraft = async () => {
+    if (!documentName || !user || !userRole?.organization.id || !currentConversationId) return;
+    
+    setIsSaving(true);
+    try {
+      // Find the last assistant message with document content
+      const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
+      if (!lastAssistantMsg) return;
+
+      const content = lastAssistantMsg.content;
+
+      if (currentDraftId) {
+        // Update existing draft
+        const { error } = await supabase
+          .from('document_drafts')
+          .update({
+            title: documentName,
+            content: { text: content, changes: [] },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', currentDraftId);
+
+        if (error) throw error;
+      } else {
+        // Create new draft
+        const { data, error } = await supabase
+          .from('document_drafts')
+          .insert({
+            user_id: user.id,
+            organization_id: userRole.organization.id,
+            title: documentName,
+            document_type: 'New Document',
+            content: { text: content, changes: [] },
+            conversation_id: currentConversationId,
+            status: 'draft',
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        if (data?.id) {
+          setCurrentDraftId(data.id);
+          onDocumentGenerated(content, [], data.id);
+        }
+      }
+      
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Error auto-saving draft:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -130,35 +251,6 @@ export const DraftingChatInterface = ({
       if (error) throw error;
     } catch (error) {
       console.error('Error saving message:', error);
-    }
-  };
-
-  const loadDraft = async (draftId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('document_drafts')
-        .select('*')
-        .eq('id', draftId)
-        .single();
-
-      if (error) throw error;
-      
-      if (data) {
-        setCurrentDraftTitle(data.title);
-        const contentData = data.content as any;
-        onDocumentGenerated(contentData?.text || '');
-        toast({
-          title: "Draft loaded",
-          description: data.title,
-        });
-      }
-    } catch (error) {
-      console.error('Error loading draft:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load draft",
-        variant: "destructive",
-      });
     }
   };
 
@@ -492,33 +584,61 @@ export const DraftingChatInterface = ({
   };
 
   const saveDraft = async (prompt: string, content: string, mode: string) => {
+    // Don't auto-save unless document name is set
+    if (!documentName) return;
+    
+    setIsSaving(true);
     try {
       const title = documentName || currentDraftTitle || prompt.slice(0, 100);
       const documentType = mode === 'redline' ? 'Redlined Document' : 'New Document';
 
-      const { data, error } = await supabase
-        .from('document_drafts')
-        .insert({
-          user_id: user.id,
-          organization_id: userRole?.organization.id,
-          title,
-          document_type: documentType,
-          content: { text: content, changes: [], conversation_id: currentConversationId },
-          status: 'draft',
-        })
-        .select()
-        .single();
+      if (currentDraftId) {
+        // Update existing draft
+        const { error } = await supabase
+          .from('document_drafts')
+          .update({
+            title,
+            document_type: documentType,
+            content: { text: content, changes: [] },
+            conversation_id: currentConversationId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', currentDraftId);
 
-      if (error) throw error;
-      
-      console.log('Draft saved successfully:', data?.id);
-      
-      // Pass the draft ID back to parent
-      if (data?.id) {
-        onDocumentGenerated(content, [], data.id);
+        if (error) throw error;
+        console.log('Draft updated successfully:', currentDraftId);
+      } else {
+        // Create new draft
+        const { data, error } = await supabase
+          .from('document_drafts')
+          .insert({
+            user_id: user.id,
+            organization_id: userRole?.organization.id,
+            title,
+            document_type: documentType,
+            content: { text: content, changes: [] },
+            conversation_id: currentConversationId,
+            status: 'draft',
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        console.log('Draft saved successfully:', data?.id);
+        
+        // Set the current draft ID and pass it back to parent
+        if (data?.id) {
+          setCurrentDraftId(data.id);
+          onDocumentGenerated(content, [], data.id);
+        }
       }
+      
+      setLastSaved(new Date());
     } catch (error) {
       console.error('Error saving draft:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -651,9 +771,23 @@ export const DraftingChatInterface = ({
       <div className="border-t p-4 bg-background space-y-3">
         {/* Document Name Input */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            Document Name
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">
+              Document Name
+            </label>
+            {isSaving && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving...
+              </span>
+            )}
+            {!isSaving && lastSaved && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Check className="h-3 w-3" />
+                Saved {new Date(lastSaved).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
           <input
             type="text"
             value={documentName}

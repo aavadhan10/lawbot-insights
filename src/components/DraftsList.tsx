@@ -14,10 +14,11 @@ interface Draft {
   created_at: string;
   updated_at: string;
   current_version: number;
+  conversation_id?: string;
 }
 
 interface DraftsListProps {
-  onSelectDraft: (draftId: string) => void;
+  onSelectDraft: (draftId: string, conversationId?: string) => void;
   selectedDraftId?: string;
 }
 
@@ -36,7 +37,7 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) 
     try {
       const { data, error } = await supabase
         .from('document_drafts')
-        .select('id, title, document_type, created_at, updated_at, current_version')
+        .select('id, title, document_type, created_at, updated_at, current_version, conversation_id')
         .eq('organization_id', userRole.organization.id)
         .order('updated_at', { ascending: false });
 
@@ -81,7 +82,7 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) 
           drafts.map((draft) => (
             <div
               key={draft.id}
-              onClick={() => onSelectDraft(draft.id)}
+              onClick={() => onSelectDraft(draft.id, draft.conversation_id)}
               className={`
                 p-3 rounded-lg cursor-pointer transition-colors
                 ${selectedDraftId === draft.id 
