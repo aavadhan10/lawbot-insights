@@ -8,6 +8,7 @@ import {
   Bold, 
   Italic, 
   Underline, 
+  Strikethrough,
   List, 
   ListOrdered,
   AlignLeft,
@@ -311,6 +312,15 @@ export const DocumentEditor = ({
             title="Underline"
           >
             <Underline className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 hover:bg-accent" 
+            onClick={() => applyFormatting('strike')}
+            title="Strikethrough"
+          >
+            <Strikethrough className="h-4 w-4" />
           </Button>
         </div>
 

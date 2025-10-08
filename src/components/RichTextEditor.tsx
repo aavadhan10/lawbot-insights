@@ -6,6 +6,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
+import Strike from '@tiptap/extension-strike';
 import { useEffect, useImperativeHandle, forwardRef } from 'react';
 import { formatDocumentContent } from '@/utils/formatDocument';
 
@@ -32,6 +33,7 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
           bulletList: false,
           orderedList: false,
           listItem: false,
+          strike: false, // We'll use the dedicated Strike extension
         }),
         BulletList.configure({
           keepMarks: true,
@@ -49,6 +51,7 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
           },
         }),
         Underline,
+        Strike,
         TextAlign.configure({
           types: ['heading', 'paragraph'],
         }),
