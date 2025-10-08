@@ -64,10 +64,8 @@ export const DraftingChatInterface = ({
       loadDraft(selectedDraftId);
     } else if (selectedConversationId) {
       setCurrentConversationId(selectedConversationId);
-    } else if (user && userRole?.organization.id) {
-      // Create a new conversation for this drafting session
-      createNewConversation();
     }
+    // Do not auto-create a conversation on mount; wait until first message
   }, [selectedDraftId, selectedConversationId, user, userRole]);
 
   useEffect(() => {
@@ -95,7 +93,7 @@ export const DraftingChatInterface = ({
     };
   }, [documentName]);
 
-  const createNewConversation = async () => {
+  const createNewConversation = async (initialTitle?: string) => {
     if (!user || !userRole?.organization.id) return;
     
     try {
@@ -104,7 +102,7 @@ export const DraftingChatInterface = ({
         .insert({
           user_id: user.id,
           organization_id: userRole.organization.id,
-          title: 'New Document Draft',
+          title: initialTitle || 'New Document Draft',
           conversation_type: 'drafter'
         })
         .select()
@@ -321,6 +319,18 @@ export const DraftingChatInterface = ({
       return;
     }
     
+    // Ensure a conversation exists; create it on first message with a sensible title
+    if (!currentConversationId) {
+      const derivedTitle = (documentName && documentName.trim().length > 0)
+        ? documentName
+        : (messageText.slice(0, 60) + (messageText.length > 60 ? '...' : ''));
+      await createNewConversation(derivedTitle);
+      if (!documentName) {
+        setDocumentName(derivedTitle);
+        onDocumentNameChange?.(derivedTitle);
+      }
+    }
+
     const mode = 'generate';
 
     // Initialize steps
