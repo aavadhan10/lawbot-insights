@@ -160,7 +160,7 @@ export default function Assistant() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
         <h1 className="text-3xl font-semibold">Briefly AI Assistant</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
             <MessageSquare className="w-4 h-4 mr-2" />
             History
@@ -168,6 +168,22 @@ export default function Assistant() {
           <Button variant="ghost" size="sm" onClick={() => setFeedbackModalOpen(true)}>
             <Sparkles className="w-4 h-4 mr-2" />
             Feedback
+          </Button>
+          <div className="h-5 w-px bg-border" />
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => { 
+              setConversationId(null); 
+              setInitialPrompt(""); 
+              setSelectedDocuments([]);
+              localStorage.removeItem('lastConversationId');
+              scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="font-medium"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            New thread
           </Button>
         </div>
       </div>
@@ -178,15 +194,6 @@ export default function Assistant() {
         <div className="px-6 py-4 border-b flex-shrink-0">
           <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center gap-2 flex-wrap">
-              <Button onClick={() => { 
-                setConversationId(null); 
-                setInitialPrompt(""); 
-                setSelectedDocuments([]);
-                localStorage.removeItem('lastConversationId');
-              }}>
-                <MessageSquare className="w-4 h-4 mr-2" />
-                New Chat
-              </Button>
               <Button variant="outline" onClick={() => setPromptLibraryOpen(true)}>
                 <List className="w-4 h-4 mr-2" />
                 Browse Prompts
@@ -199,45 +206,51 @@ export default function Assistant() {
           </div>
         </div>
 
-        {/* Main Chat Area - Full Width */}
+        {/* Two Column Layout */}
         <div className="flex-1 overflow-hidden px-6 py-6">
-          <div className="mx-auto h-full flex flex-col">
-            {/* Chat Interface - Full Width */}
-            <div className="flex-1 overflow-hidden">
-              <LegalChatInterface
-                conversationId={conversationId}
-                onConversationCreated={setConversationId}
-                selectedDocuments={selectedDocuments}
-                onRemoveDocument={handleRemoveDocument}
-                initialPrompt={initialPrompt}
-              />
-            </div>
-          </div>
-        </div>
+          <div className="max-w-[1600px] mx-auto h-full">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 h-full">
+              {/* Left Column - Chat Interface */}
+              <div className="min-w-0 flex flex-col overflow-hidden">
+                <LegalChatInterface
+                  key={conversationId || 'new-thread'}
+                  conversationId={conversationId}
+                  onConversationCreated={setConversationId}
+                  selectedDocuments={selectedDocuments}
+                  onRemoveDocument={handleRemoveDocument}
+                  initialPrompt={initialPrompt}
+                />
+              </div>
 
-        {/* Recommended Workflows - Below Chat */}
-        <div className="border-t px-6 py-6">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-lg font-semibold mb-4">Recommended workflows</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {workflows.map((workflow, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleWorkflowClick(workflow.title)}
-                  className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer hover:shadow-md"
-                >
-                  <h3 className="font-semibold mb-2">{workflow.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                    {workflow.description}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="secondary" className="text-xs">
-                      {workflow.type}
-                    </Badge>
-                    <span>· {workflow.steps} step{workflow.steps > 1 ? 's' : ''}</span>
-                  </div>
+              {/* Right Column - Recommended Workflows */}
+              <div className="xl:border-l xl:pl-8 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                  <h2 className="text-lg font-semibold">Recommended workflows</h2>
                 </div>
-              ))}
+
+                <ScrollArea className="flex-1">
+                  <div className="space-y-4 pr-4">
+                    {workflows.map((workflow, index) => (
+                      <div
+                        key={index}
+                        onClick={() => handleWorkflowClick(workflow.title)}
+                        className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer hover:shadow-md"
+                      >
+                        <h3 className="font-semibold mb-2">{workflow.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {workflow.description}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="text-xs">
+                            {workflow.type}
+                          </Badge>
+                          <span>· {workflow.steps} step{workflow.steps > 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </div>
         </div>

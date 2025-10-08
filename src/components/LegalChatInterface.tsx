@@ -597,14 +597,14 @@ export const LegalChatInterface = ({
       onDrop={handleDrop}
     >
       <ScrollArea className="flex-1 p-6" ref={scrollAreaRef} onScrollCapture={handleScroll}>
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="space-y-6">
           {messages.map((message, index) => (
             <div
               key={index}
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-full md:max-w-[85%] rounded-2xl p-4 ${
+                className={`max-w-full md:max-w-[90%] rounded-2xl p-4 ${
                   message.role === "user"
                     ? "bg-primary text-primary-foreground ml-auto"
                     : "bg-card border border-border/50"
