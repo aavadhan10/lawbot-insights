@@ -25,8 +25,40 @@ serve(async (req) => {
     const fileName = file.name.toLowerCase();
     let extractedText = '';
 
-    if (fileName.endsWith('.txt') || fileName.endsWith('.csv')) {
+    if (fileName.endsWith('.txt')) {
       extractedText = await file.text();
+    } else if (fileName.endsWith('.csv')) {
+      extractedText = await file.text();
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      // Handle Excel files
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const XLSX = (await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs")).default;
+        
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        
+        // Extract text from all sheets
+        const sheetsText: string[] = [];
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          // Convert to CSV format for plain text extraction
+          const csvText = XLSX.utils.sheet_to_csv(worksheet);
+          if (csvText.trim().length > 0) {
+            sheetsText.push(`\n=== Sheet: ${sheetName} ===\n${csvText}`);
+          }
+        });
+        
+        extractedText = sheetsText.join('\n\n');
+        
+        if (!extractedText || extractedText.trim().length === 0) {
+          extractedText = `Document: ${file.name}\n\nNote: This Excel file appears to be empty or contains no readable data.`;
+        } else {
+          console.log(`Successfully extracted ${extractedText.length} characters from ${workbook.SheetNames.length} sheet(s)`);
+        }
+      } catch (xlsxError) {
+        console.error('Excel parsing error:', xlsxError);
+        extractedText = `Document: ${file.name}\n\nError: Could not parse Excel file. ${xlsxError instanceof Error ? xlsxError.message : 'Unknown error'}`;
+      }
     } else if (fileName.endsWith('.pdf')) {
       // Use unpdf - designed for edge/serverless environments
       try {
@@ -82,7 +114,7 @@ serve(async (req) => {
       }
     } else {
       return new Response(
-        JSON.stringify({ error: 'Unsupported file type. Please upload PDF, DOCX, CSV, or TXT files.' }),
+        JSON.stringify({ error: 'Unsupported file type. Please upload PDF, DOCX, XLSX, XLS, CSV, or TXT files.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
