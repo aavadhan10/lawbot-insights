@@ -66,9 +66,10 @@ export default function ContractReview() {
     },
     enabled: !!currentReviewId,
     refetchInterval: (query) => {
-      // Poll every 3 seconds while processing
+      // Poll every 2 seconds while processing, keep polling for a bit after to catch completion
       const data = query.state.data;
-      return data?.review?.status === 'processing' ? 3000 : false;
+      if (!data?.review) return 2000; // Keep polling if no data yet
+      return data.review.status === 'processing' ? 2000 : false;
     }
   });
 
@@ -275,7 +276,7 @@ export default function ContractReview() {
                   and benchmarking against market standards.
                 </p>
               </div>
-            ) : reviewData?.review.status === 'completed' ? (
+            ) : reviewData?.review.status === 'completed' && reviewData.findings.length > 0 ? (
               <>
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">Review Results</h2>
@@ -323,9 +324,9 @@ export default function ContractReview() {
                   ))}
                 </div>
               </>
-            ) : (
+            ) : reviewData?.review.status === 'completed' && reviewData.findings.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-destructive">Analysis failed. Please try again.</p>
+                <p className="text-muted-foreground">Analysis complete but no findings were generated.</p>
                 <Button 
                   variant="outline" 
                   onClick={() => setCurrentReviewId(null)}
@@ -333,6 +334,24 @@ export default function ContractReview() {
                 >
                   Start New Review
                 </Button>
+              </div>
+            ) : reviewData?.review.status === 'failed' ? (
+              <div className="text-center py-12">
+                <p className="text-destructive mb-2">Analysis failed</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  There was an error analyzing this contract. Please try again.
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentReviewId(null)}
+                >
+                  Start New Review
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading analysis results...</p>
               </div>
             )}
           </div>

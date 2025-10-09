@@ -158,8 +158,8 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90vw] max-h-[85vh] m-4 p-0 gap-0">
-        <div className="bg-background h-full flex flex-col">
+      <DialogContent className="max-w-[90vw] h-[85vh] m-4 p-0 gap-0">
+        <div className="bg-background h-full flex flex-col overflow-hidden">
           <div className="px-6 py-4 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -217,37 +217,40 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden min-h-0">
               {/* Document Area */}
-              <ScrollArea className="flex-[2] border-r">
-                <div className="p-12 bg-white min-h-full">
-                  {editMode ? (
-                    <Textarea
-                      value={editedText}
-                      onChange={(e) => setEditedText(e.target.value)}
-                      className="min-h-[calc(85vh-12rem)] w-full font-serif text-[15px] leading-[1.8] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                      style={{ 
-                        fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
-                        textAlign: 'justify'
-                      }}
-                    />
-                  ) : (
-                    <div 
-                      className="text-foreground text-[15px] leading-[1.8] whitespace-pre-wrap"
-                      style={{ 
-                        fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
-                        textAlign: 'justify',
-                        hyphens: 'auto'
-                      }}
-                      dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
-                    />
-                  )}
-                </div>
-              </ScrollArea>
+              <div className="flex-[2] border-r flex flex-col overflow-hidden">
+                <ScrollArea className="flex-1">
+                  <div className="p-12 bg-white">
+                    {editMode ? (
+                      <Textarea
+                        value={editedText}
+                        onChange={(e) => setEditedText(e.target.value)}
+                        className="min-h-[600px] w-full font-serif text-[15px] leading-[1.8] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        style={{ 
+                          fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                          textAlign: 'justify'
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="text-foreground text-[15px] leading-[1.8] whitespace-pre-wrap"
+                        style={{ 
+                          fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                          textAlign: 'justify',
+                          hyphens: 'auto'
+                        }}
+                        dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
+                      />
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
 
               {/* Suggestions Sidebar */}
-              <ScrollArea className="flex-1 bg-muted/30">
-                <div className="p-4 space-y-3">
+              <div className="flex-1 bg-muted/30 flex flex-col overflow-hidden">
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-3">
                   <h3 className="font-semibold text-sm text-muted-foreground px-2">
                     SUGGESTIONS ({findings.length})
                   </h3>
@@ -337,6 +340,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
                   })}
                 </div>
               </ScrollArea>
+            </div>
             </div>
           )}
         </div>
