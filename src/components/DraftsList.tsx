@@ -28,6 +28,7 @@ interface DraftsListProps {
   onRestoreVersion?: (content: any) => void;
   onInsertTemplate?: (content: string) => void;
   hasOpenDocument?: boolean;
+  refreshTrigger?: number;
 }
 
 export const DraftsList = ({ 
@@ -35,7 +36,8 @@ export const DraftsList = ({
   selectedDraftId, 
   onRestoreVersion,
   onInsertTemplate,
-  hasOpenDocument = false
+  hasOpenDocument = false,
+  refreshTrigger
 }: DraftsListProps) => {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,13 @@ export const DraftsList = ({
   useEffect(() => {
     loadDrafts();
   }, [userRole]);
+
+  // Reload drafts when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadDrafts();
+    }
+  }, [refreshTrigger]);
 
   const loadDrafts = async () => {
     if (!userRole?.organization.id) return;

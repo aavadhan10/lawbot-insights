@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Download, 
   FileText, 
@@ -51,6 +52,7 @@ interface DocumentEditorProps {
   onTitleSaved?: (title: string) => void;
   templateContentToInsert?: string | null;
   onTemplateInserted?: () => void;
+  onDraftUpdated?: () => void;
 }
 
 export const DocumentEditor = ({ 
@@ -62,7 +64,8 @@ export const DocumentEditor = ({
   draftId,
   onTitleSaved,
   templateContentToInsert,
-  onTemplateInserted
+  onTemplateInserted,
+  onDraftUpdated
 }: DocumentEditorProps) => {
   const [editorContent, setEditorContent] = useState(content);
   const [originalContent, setOriginalContent] = useState(content);
@@ -326,9 +329,8 @@ export const DocumentEditor = ({
       setIsEditingTitle(false);
       setPreviousTitle(tempTitle);
       toast.success("Title updated");
-      if (onTitleSaved) {
-        onTitleSaved(tempTitle);
-      }
+      onTitleSaved?.(tempTitle);
+      onDraftUpdated?.();
     } catch (error) {
       console.error('Error updating title:', error);
       toast.error("Failed to update title");
@@ -429,55 +431,63 @@ export const DocumentEditor = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Unified Header with Title and Controls */}
-      <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-          {isEditingTitle ? (
-            <>
-              <Input
-                type="text"
-                value={tempTitle}
-                onChange={(e) => setTempTitle(e.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                className="text-lg font-semibold flex-1 min-w-0 h-9"
-                placeholder="Untitled Document"
-                autoFocus
-              />
-              <Button 
-                onClick={handleSaveTitle}
-                size="sm"
-                className="flex-shrink-0 h-9"
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-              <Button 
-                onClick={handleCancelEditTitle}
-                variant="ghost"
-                size="sm"
-                className="flex-shrink-0 h-9"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <span className="text-lg font-semibold flex-1 min-w-0 truncate">
-                {editableTitle}
-              </span>
-              <Button 
-                onClick={handleStartEditTitle}
-                variant="ghost"
-                size="sm"
-                className="flex-shrink-0 h-9"
-                title="Rename document"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
+    <TooltipProvider>
+      <div className="h-full flex flex-col bg-background">
+        {/* Unified Header with Title and Controls */}
+        <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+            {isEditingTitle ? (
+              <>
+                <Input
+                  type="text"
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onKeyDown={handleTitleKeyDown}
+                  className="text-lg font-semibold flex-1 min-w-0 h-9"
+                  placeholder="Untitled Document"
+                  autoFocus
+                />
+                <Button 
+                  onClick={handleSaveTitle}
+                  size="sm"
+                  className="flex-shrink-0 h-9"
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button 
+                  onClick={handleCancelEditTitle}
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0 h-9"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-lg font-semibold flex-1 min-w-0 truncate">
+                      {editableTitle}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{editableTitle}</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Button 
+                  onClick={handleStartEditTitle}
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0 h-9"
+                  title="Rename document"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground mr-2">
             {saveStatus === 'saving' ? 'Saving...' : 'All changes saved'}
@@ -680,5 +690,6 @@ export const DocumentEditor = ({
         </ScrollArea>
       </div>
     </div>
+    </TooltipProvider>
   );
 };

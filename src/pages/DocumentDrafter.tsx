@@ -17,6 +17,7 @@ const DocumentDrafter = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
   const [templateContentToInsert, setTemplateContentToInsert] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
   const { userRole } = useOrganization();
 
@@ -178,6 +179,7 @@ const DocumentDrafter = () => {
             onRestoreVersion={handleRestoreVersion}
             onInsertTemplate={handleInsertTemplate}
             hasOpenDocument={!!currentDraftId}
+            refreshTrigger={refreshTrigger}
           />
         </div>
 
@@ -193,6 +195,7 @@ const DocumentDrafter = () => {
               draftId={currentDraftId}
               templateContentToInsert={templateContentToInsert}
               onTemplateInserted={() => setTemplateContentToInsert(null)}
+              onDraftUpdated={() => setRefreshTrigger(prev => prev + 1)}
             />
           </div>
           
