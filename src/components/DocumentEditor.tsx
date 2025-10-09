@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Download, 
@@ -14,7 +16,10 @@ import {
   Save,
   Palette,
   History,
-  RotateCcw
+  RotateCcw,
+  Check,
+  X,
+  Pencil
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -61,13 +66,16 @@ export const DocumentEditor = ({
   const [originalContent, setOriginalContent] = useState(content);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [editableTitle, setEditableTitle] = useState(title);
+  const [tempTitle, setTempTitle] = useState(title);
   const [previousTitle, setPreviousTitle] = useState(title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [textColor, setTextColor] = useState("#000000");
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [lastVersionContent, setLastVersionContent] = useState(content);
+  const [showVersionDialog, setShowVersionDialog] = useState(false);
+  const [versionName, setVersionName] = useState("");
   const editorRef = useRef<RichTextEditorRef>(null);
 
   useEffect(() => {
@@ -132,6 +140,7 @@ export const DocumentEditor = ({
     setOriginalContent(content);
     setLastVersionContent(content);
     setEditableTitle(title);
+    setTempTitle(title);
     setPreviousTitle(title);
   }, [content, draftId, title]);
 
@@ -166,7 +175,6 @@ export const DocumentEditor = ({
 
       if (!error) {
         if (showToast) toast.success('Draft saved');
-        setLastSaved(new Date());
       }
     } catch (error) {
       console.error('Save draft error:', error);
@@ -176,16 +184,40 @@ export const DocumentEditor = ({
     }
   };
 
-  // Auto-save with debouncing (30 seconds, no version creation)
+  // Auto-save draft every 10 seconds
   useEffect(() => {
     if (!draftId) return;
 
     const timer = setTimeout(async () => {
-      await saveDraft(false);
-    }, 30000); // 30 seconds
+      if (editorContent !== originalContent || editableTitle !== previousTitle) {
+        setSaveStatus('saving');
+        await saveDraft(false);
+        setSaveStatus('saved');
+      }
+    }, 10000); // 10 seconds
 
     return () => clearTimeout(timer);
-  }, [editorContent, editableTitle, draftId]);
+  }, [editorContent, editableTitle, draftId, originalContent, previousTitle]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        setShowVersionDialog(true);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        setSaveStatus('saving');
+        saveDraft().then(() => {
+          setSaveStatus('saved');
+          toast.success("Draft saved");
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [draftId]);
 
   const calculateChangesSummary = (oldContent: string, newContent: string, oldTitle: string, newTitle: string): string => {
     const parts = [];
@@ -210,74 +242,107 @@ export const DocumentEditor = ({
   };
 
   const handleManualSave = async () => {
+    setShowVersionDialog(true);
+  };
+
+  const handleSaveVersion = async () => {
     if (!draftId) return;
 
     setIsSaving(true);
     try {
-      // Save draft with current content and title
+      // First save the current draft content
       await saveDraft(false);
-      
-      // Get current version number from DB
+
+      // Get current version number
       const nextVersion = await getCurrentVersion() + 1;
-      const changesSummary = calculateChangesSummary(lastVersionContent, editorContent, previousTitle, editableTitle);
-      
-      // Create version snapshot
+
+      // Create change summary
+      const titleChanged = editableTitle !== previousTitle;
+      const charDelta = editorContent.length - lastVersionContent.length;
+      let changesSummary = versionName || `Version ${nextVersion}`;
+      if (titleChanged) changesSummary += ` - Title changed`;
+      if (charDelta !== 0) changesSummary += ` - ${Math.abs(charDelta)} chars ${charDelta > 0 ? 'added' : 'removed'}`;
+
+      // Create a new version entry
       const { error: versionError } = await supabase
         .from('draft_versions')
         .insert({
           draft_id: draftId,
           version_number: nextVersion,
           content: { text: editorContent, changes: [] },
-          changes_summary: changesSummary
+          changes_summary: changesSummary,
+          version_name: versionName || null,
         });
 
-      if (!versionError) {
-        // Update current_version in document_drafts
-        await supabase
-          .from('document_drafts')
-          .update({ current_version: nextVersion })
-          .eq('id', draftId);
-        
-        setCurrentVersion(nextVersion);
-        setLastVersionContent(editorContent);
-        setOriginalContent(editorContent);
-        setPreviousTitle(editableTitle);
-        toast.success(`Saved as version ${nextVersion}`);
-      }
+      if (versionError) throw versionError;
+
+      // Update the draft's current version
+      const { error: updateError } = await supabase
+        .from('document_drafts')
+        .update({ current_version: nextVersion })
+        .eq('id', draftId);
+
+      if (updateError) throw updateError;
+
+      setCurrentVersion(nextVersion);
+      setLastVersionContent(editorContent);
+      setOriginalContent(editorContent);
+      setPreviousTitle(editableTitle);
+      setVersionName("");
+      setShowVersionDialog(false);
+      setSaveStatus('saved');
+      toast.success(versionName ? `"${versionName}" saved` : `Version ${nextVersion} saved`);
     } catch (error) {
-      console.error('Save version error:', error);
+      console.error('Error saving version:', error);
       toast.error('Failed to save version');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleStartEditTitle = () => {
+    setTempTitle(editableTitle);
+    setIsEditingTitle(true);
+  };
+
   const handleSaveTitle = async () => {
-    if (!draftId || !editableTitle) return;
+    if (!draftId || tempTitle.trim() === "") {
+      toast.error("Title cannot be empty");
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('document_drafts')
-        .update({ title: editableTitle })
+        .update({ title: tempTitle })
         .eq('id', draftId);
 
-      if (!error) {
-        setIsEditingTitle(false);
-        if (onTitleSaved) {
-          onTitleSaved(editableTitle);
-        }
+      if (error) throw error;
+
+      setEditableTitle(tempTitle);
+      setIsEditingTitle(false);
+      setPreviousTitle(tempTitle);
+      toast.success("Title updated");
+      if (onTitleSaved) {
+        onTitleSaved(tempTitle);
       }
     } catch (error) {
-      console.error('Save title error:', error);
-      toast.error('Failed to save title');
+      console.error('Error updating title:', error);
+      toast.error("Failed to update title");
     }
   };
 
-  const handleTitleBlur = () => {
-    if (editableTitle !== title) {
+  const handleCancelEditTitle = () => {
+    setTempTitle(editableTitle);
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
       handleSaveTitle();
-    } else {
-      setIsEditingTitle(false);
+    } else if (e.key === 'Escape') {
+      handleCancelEditTitle();
     }
   };
 
@@ -351,43 +416,62 @@ export const DocumentEditor = ({
     <div className="h-full flex flex-col bg-background">
       {/* Unified Header with Title and Controls */}
       <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-        <div className="flex items-center gap-2 flex-1">
-          <input
-            type="text"
-            value={editableTitle}
-            onChange={(e) => setEditableTitle(e.target.value)}
-            className="text-lg font-semibold tracking-tight bg-transparent border-b-2 border-transparent hover:border-muted focus:border-primary focus:outline-none transition-colors px-2 py-1 rounded max-w-md"
-            placeholder="Document title..."
-            onBlur={handleTitleBlur}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSaveTitle();
-                e.currentTarget.blur();
-              }
-            }}
-          />
-          {editableTitle !== title && (
-            <Button variant="outline" size="sm" onClick={handleSaveTitle} className="h-8 flex-shrink-0">
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save
-            </Button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+          {isEditingTitle ? (
+            <>
+              <Input
+                type="text"
+                value={tempTitle}
+                onChange={(e) => setTempTitle(e.target.value)}
+                onKeyDown={handleTitleKeyDown}
+                className="text-lg font-semibold flex-1 min-w-0 h-9"
+                placeholder="Untitled Document"
+                autoFocus
+              />
+              <Button 
+                onClick={handleSaveTitle}
+                size="sm"
+                className="flex-shrink-0 h-9"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={handleCancelEditTitle}
+                variant="ghost"
+                size="sm"
+                className="flex-shrink-0 h-9"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="text-lg font-semibold flex-1 min-w-0 truncate">
+                {editableTitle}
+              </span>
+              <Button 
+                onClick={handleStartEditTitle}
+                variant="ghost"
+                size="sm"
+                className="flex-shrink-0 h-9"
+                title="Rename document"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {isSaving && (
-            <span className="text-xs text-muted-foreground">Saving...</span>
-          )}
-          {!isSaving && lastSaved && (
-            <span className="text-xs text-muted-foreground">
-              Saved {formatDistanceToNow(lastSaved, { addSuffix: true })}
-            </span>
-          )}
-          <Button 
-            variant="default" 
-            size="sm" 
-            className="h-9 text-xs gap-1.5"
+          <span className="text-xs text-muted-foreground mr-2">
+            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'All changes saved' : ''}
+          </span>
+          <Button
             onClick={handleManualSave}
-            disabled={!draftId || isSaving}
+            disabled={isSaving}
+            size="sm"
+            className="h-9 text-xs gap-1.5"
+            title="Save Version (Ctrl+Shift+S)"
           >
             <Save className="h-4 w-4" />
             <span className="hidden sm:inline">Save Version</span>
@@ -404,7 +488,7 @@ export const DocumentEditor = ({
                   <span className="hidden sm:inline">History</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-96 bg-background border-l shadow-2xl">
+              <SheetContent className="w-96 bg-white dark:bg-neutral-950 border-l shadow-2xl">
                 <SheetHeader>
                   <SheetTitle>Version History</SheetTitle>
                 </SheetHeader>
@@ -436,7 +520,7 @@ export const DocumentEditor = ({
       </div>
 
       {/* Enhanced Formatting Toolbar */}
-      <div className="border-b px-6 py-2 flex items-center gap-1 flex-shrink-0 bg-muted/30">
+      <div className="border-b px-6 py-2 flex items-center gap-1 flex-shrink-0 bg-muted">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 text-xs font-normal px-3">
@@ -603,6 +687,46 @@ export const DocumentEditor = ({
           </div>
         </ScrollArea>
       </div>
+
+      {/* Version Name Dialog */}
+      <Dialog open={showVersionDialog} onOpenChange={setShowVersionDialog}>
+        <DialogContent className="bg-white dark:bg-neutral-950">
+          <DialogHeader>
+            <DialogTitle>Name this version</DialogTitle>
+            <DialogDescription>
+              Give this version a name to help you identify it later (optional)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Input
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+              placeholder="e.g., Final draft, Client review"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSaveVersion();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setVersionName("");
+                  setShowVersionDialog(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveVersion} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Version'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -374,6 +374,7 @@ export type Database = {
           created_at: string
           draft_id: string
           id: string
+          version_name: string | null
           version_number: number
         }
         Insert: {
@@ -382,6 +383,7 @@ export type Database = {
           created_at?: string
           draft_id: string
           id?: string
+          version_name?: string | null
           version_number: number
         }
         Update: {
@@ -390,6 +392,7 @@ export type Database = {
           created_at?: string
           draft_id?: string
           id?: string
+          version_name?: string | null
           version_number?: number
         }
         Relationships: [

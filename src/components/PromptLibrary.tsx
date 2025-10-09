@@ -50,7 +50,7 @@ export const PromptLibrary = ({ open, onOpenChange, onSelectPrompt }: PromptLibr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] bg-background">
+      <DialogContent className="max-w-3xl max-h-[80vh] bg-white dark:bg-neutral-950">
         <DialogHeader>
           <DialogTitle>Prompt Library</DialogTitle>
         </DialogHeader>
