@@ -470,16 +470,9 @@ export const DocumentEditor = ({
               </>
             ) : (
             <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-lg font-semibold flex-1 min-w-0 truncate max-w-[600px]">
-                      {editableTitle}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{editableTitle}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <span className="text-lg font-semibold flex-1 min-w-0">
+                  {editableTitle}
+                </span>
                 <Button 
                   onClick={handleStartEditTitle}
                   variant="ghost"
@@ -622,30 +615,6 @@ export const DocumentEditor = ({
             title="Text Color"
           />
         </div>
-
-        <div className="h-5 w-px bg-border mx-1" />
-
-        <DropdownMenu open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 text-xs px-3">
-              <FileDown className="h-4 w-4 mr-2" />
-              Insert Template
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
-            {templates.map((template) => (
-              <DropdownMenuItem 
-                key={template.id}
-                onClick={() => handleTemplateClick(template)}
-              >
-                <div>
-                  <div className="font-medium">{template.title}</div>
-                  <div className="text-xs text-muted-foreground">{template.type}</div>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
 
       </div>
       
