@@ -4,9 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MessageSquare, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, MessageSquare, Trash2, ChevronDown, ChevronRight, FileText, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import ContractHistory from "@/components/contract-review/ContractHistory";
 
 interface Message {
   id: string;
@@ -34,19 +37,35 @@ interface Draft {
   conversation_id?: string;
 }
 
+interface ContractReview {
+  id: string;
+  document_id: string;
+  status: string;
+  created_at: string;
+  analysis_results: any;
+  documents: {
+    filename: string;
+    file_type: string;
+    created_at: string;
+  };
+}
+
 export default function HistoryPage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [contractReviews, setContractReviews] = useState<ContractReview[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [expandedConvId, setExpandedConvId] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'conversations' | 'drafts'>('conversations');
+  const [activeTab, setActiveTab] = useState<'conversations' | 'drafts' | 'contracts'>('conversations');
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
     loadDrafts();
+    loadContractReviews();
   }, []);
 
   const loadConversations = async () => {
@@ -79,6 +98,24 @@ export default function HistoryPage() {
     } catch (error: any) {
       console.error("Error loading drafts:", error);
       toast.error("Failed to load drafts");
+    }
+  };
+
+  const loadContractReviews = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contract_reviews')
+        .select(`
+          *,
+          documents!inner(filename, file_type, created_at)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setContractReviews(data || []);
+    } catch (error: any) {
+      console.error("Error loading contract reviews:", error);
+      toast.error("Failed to load contract reviews");
     }
   };
 
@@ -174,6 +211,10 @@ export default function HistoryPage() {
     draft.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredContracts = contractReviews.filter(review =>
+    review.documents.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -202,10 +243,83 @@ export default function HistoryPage() {
         >
           Document Drafts
         </Button>
+        <Button
+          variant={activeTab === 'contracts' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('contracts')}
+        >
+          Contracts
+        </Button>
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-6">
-        {activeTab === 'conversations' ? (
+        {activeTab === 'contracts' ? (
+          // Contracts tab
+          isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+          ) : filteredContracts.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-xl font-semibold mb-2">
+                {searchQuery ? "No contracts found" : "No contracts yet"}
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                {searchQuery ? "Try a different search term" : "Review your first contract to see it here"}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => navigate('/contract-review')}>
+                  Review Contract
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredContracts.map((review) => (
+                <Card key={review.id} className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                        <h3 className="font-semibold text-lg truncate">
+                          {review.documents.filename}
+                        </h3>
+                        <Badge variant={review.status === 'completed' ? 'default' : 'secondary'}>
+                          {review.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                        <span>Reviewed: {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}</span>
+                        {review.analysis_results?.total_findings && (
+                          <span>{review.analysis_results.total_findings} findings</span>
+                        )}
+                        {review.analysis_results?.high_risk > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            {review.analysis_results.high_risk} high risk
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedContractId(
+                          selectedContractId === review.document_id ? null : review.document_id
+                        )}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        {selectedContractId === review.document_id ? 'Hide' : 'View'} Version History
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {selectedContractId === review.document_id && (
+                    <div className="mt-6 border-t pt-6">
+                      <ContractHistory documentId={review.document_id} />
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )
+        ) : activeTab === 'conversations' ? (
           isLoading ? (
             <div className="text-center py-12 text-muted-foreground">Loading...</div>
           ) : filteredConversations.length === 0 ? (

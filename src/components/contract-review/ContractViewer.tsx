@@ -131,7 +131,17 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
 
       setFindingStatuses(prev => ({ ...prev, [findingId]: newStatus }));
       
-      toast.success(newStatus === 'applied' ? "Change accepted" : "Change rejected");
+      // If accepting a change, apply it to the edited text
+      if (newStatus === 'applied') {
+        const finding = findings.find(f => f.id === findingId);
+        if (finding?.original_text && finding?.suggested_text) {
+          setEditedText(prevText => 
+            prevText.replace(finding.original_text!, finding.suggested_text!)
+          );
+        }
+      }
+      
+      toast.success(newStatus === 'applied' ? "Change accepted and applied to contract" : "Change rejected");
     } catch (error) {
       console.error('Error updating finding status:', error);
       toast.error("Failed to update suggestion status");
@@ -268,7 +278,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleSaveContract}
-                disabled={!editMode || !hasUnsavedChanges || isSaving}
+                disabled={isSaving}
                 size="sm"
                 variant={hasUnsavedChanges ? "default" : "outline"}
               >
@@ -280,7 +290,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    {hasUnsavedChanges ? "Save Changes" : "No Changes"}
+                    Save Contract
                   </>
                 )}
               </Button>
