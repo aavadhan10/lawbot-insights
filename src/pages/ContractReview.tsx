@@ -133,7 +133,7 @@ export default function ContractReview() {
       if (analyzeResponse.error) throw analyzeResponse.error;
 
       setCurrentReviewId(analyzeResponse.data.reviewId);
-      toast.success("Contract analysis started! This may take 30-60 seconds.");
+      toast.success("Analysis started! Results will appear automatically when ready.");
       
     } catch (error) {
       console.error('Error analyzing contract:', error);
@@ -157,7 +157,7 @@ export default function ContractReview() {
       if (analyzeResponse.error) throw analyzeResponse.error;
 
       setCurrentReviewId(analyzeResponse.data.reviewId);
-      toast.success("Contract analysis started!");
+      toast.success("Analysis started! Results will appear automatically.");
       
     } catch (error) {
       console.error('Error analyzing contract:', error);
@@ -273,8 +273,7 @@ export default function ContractReview() {
                 <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Analyzing Contract...</h3>
                 <p className="text-muted-foreground">
-                  This usually takes 30-60 seconds. We're extracting clauses, assessing risks, 
-                  and benchmarking against market standards.
+                  Extracting clauses, assessing risks, and benchmarking against market standards.
                 </p>
               </div>
             ) : reviewData?.review.status === 'completed' && reviewData.findings.length > 0 ? (
