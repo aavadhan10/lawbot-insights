@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import { DraftsList } from "@/components/DraftsList";
 import { DraftVersionHistory } from "@/components/DraftVersionHistory";
-import { ChatDialog } from "@/components/ChatDialog";
+import { DraftingChatInterface } from "@/components/DraftingChatInterface";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
 
 const DocumentDrafter = () => {
   const [documentContent, setDocumentContent] = useState("");
@@ -16,7 +14,6 @@ const DocumentDrafter = () => {
   const [selectedDraftId, setSelectedDraftId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
   // Check localStorage for selectedDraftId on mount
@@ -112,14 +109,7 @@ const DocumentDrafter = () => {
       <div className="px-6 py-8 flex-shrink-0 border-b bg-background/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Document Drafter</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                  AI: Ready
-                </span>
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Document Drafter</h1>
             <DraftVersionHistory 
               draftId={currentDraftId || ''} 
               onRestoreVersion={handleRestoreVersion}
@@ -138,38 +128,31 @@ const DocumentDrafter = () => {
           />
         </div>
 
-        {/* Right - Document Editor */}
-        <div className="flex-1 relative">
-          <DocumentEditor
-            content={displayedContent}
-            title={documentTitle}
-            changes={documentChanges}
-            isGenerating={isGenerating}
-            onExport={handleExport}
-            draftId={currentDraftId}
-          />
+        {/* Right - Document Editor & Chat */}
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <DocumentEditor
+              content={displayedContent}
+              title={documentTitle}
+              changes={documentChanges}
+              isGenerating={isGenerating}
+              onExport={handleExport}
+              draftId={currentDraftId}
+            />
+          </div>
           
-          {/* Floating Chat Button */}
-          <Button
-            onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all"
-            size="icon"
-          >
-            <MessageSquare className="h-5 w-5" />
-          </Button>
+          {/* Chat Interface at Bottom */}
+          <div className="border-t bg-background">
+            <DraftingChatInterface
+              onDocumentGenerated={handleDocumentGenerated}
+              onGeneratingChange={setIsGenerating}
+              selectedDraftId={selectedDraftId}
+              selectedConversationId={selectedConversationId}
+              onDocumentNameChange={setDocumentTitle}
+            />
+          </div>
         </div>
       </div>
-
-      {/* Chat Dialog */}
-      <ChatDialog
-        open={isChatOpen}
-        onOpenChange={setIsChatOpen}
-        onDocumentGenerated={handleDocumentGenerated}
-        onGeneratingChange={setIsGenerating}
-        selectedDraftId={selectedDraftId}
-        selectedConversationId={selectedConversationId}
-        onDocumentNameChange={setDocumentTitle}
-      />
     </div>
   );
 };

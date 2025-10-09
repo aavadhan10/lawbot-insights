@@ -61,9 +61,7 @@ export function AppSidebar() {
           .single();
 
         if (!error && profile?.full_name) {
-          // Extract first name only
-          const firstName = profile.full_name.split(' ')[0];
-          setUserName(firstName);
+          setUserName(profile.full_name);
         }
       } catch (error) {
         console.error("Error fetching user name:", error);
@@ -79,8 +77,7 @@ export function AppSidebar() {
     const onProfileUpdated = (e: any) => {
       const name: string | undefined = e?.detail?.fullName;
       if (name) {
-        const first = name.split(" ")[0];
-        setUserName(first);
+        setUserName(name);
       }
     };
     window.addEventListener("profile-updated", onProfileUpdated);
