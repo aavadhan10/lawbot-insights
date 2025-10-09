@@ -47,9 +47,9 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">B</span>
+              <span className="text-primary-foreground font-bold font-heading">B</span>
             </div>
-            <span className="text-sm font-medium">Briefly</span>
+            <span className="text-base font-heading font-semibold">Briefly</span>
           </div>
         )}
       </SidebarHeader>

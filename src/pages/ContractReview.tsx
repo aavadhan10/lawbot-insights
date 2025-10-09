@@ -183,19 +183,9 @@ export default function ContractReview() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section with Gradient */}
-      <div className="bg-gradient-hero py-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12 animate-fade-in">
-            <h1 className="text-5xl md:text-6xl font-heading font-bold text-white mb-4">
-              AI-Powered Contract Intelligence
-            </h1>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto">
-              Analyze contracts with precision. Assess risks automatically. Benchmark against market standards.
-            </p>
-          </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="container mx-auto py-12 px-4">
+        <div className="max-w-4xl mx-auto">
         {!currentReviewId ? (
           <div className="glass-card rounded-2xl p-8 max-w-4xl mx-auto shadow-xl animate-scale-in">
             {/* Upload Section */}
@@ -314,7 +304,7 @@ export default function ContractReview() {
                 </div>
               </div>
             )}
-          </div>
+        </div>
         ) : null}
         </div>
       </div>

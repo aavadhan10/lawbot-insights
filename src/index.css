@@ -8,7 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: linear-gradient(to bottom right, hsl(210, 100%, 99%), hsl(220, 100%, 98%), hsl(0, 0%, 100%));
+    --background-solid: 0 0% 100%;
     --foreground: 220 20% 20%;
 
     --card: 0 0% 100%;
@@ -64,7 +65,8 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 20% 12%;
+    --background: linear-gradient(to bottom right, hsl(220, 20%, 12%), hsl(220, 18%, 14%), hsl(220, 20%, 12%));
+    --background-solid: 220 20% 12%;
     --foreground: 220 15% 90%;
 
     --card: 220 18% 16%;
@@ -117,7 +119,9 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: var(--background);
+    background-attachment: fixed;
+    @apply text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   
