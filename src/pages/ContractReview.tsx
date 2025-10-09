@@ -183,26 +183,26 @@ export default function ContractReview() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Contract Review & Benchmarking</h1>
-          <p className="text-muted-foreground">
-            AI-powered contract analysis with risk assessment and market benchmarking
-          </p>
-        </div>
+    <div className="min-h-screen">
+      {/* Hero Section with Gradient */}
+      <div className="bg-gradient-hero py-16 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="text-5xl md:text-6xl font-heading font-bold text-white mb-4">
+              AI-Powered Contract Intelligence
+            </h1>
+            <p className="text-xl text-white/90 max-w-2xl mx-auto">
+              Analyze contracts with precision. Assess risks automatically. Benchmark against market standards.
+            </p>
+          </div>
 
         {!currentReviewId ? (
-          <>
-            <div className="grid lg:grid-cols-2 gap-6">
-            {/* Upload New Contract */}
-            <div className="border rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload New Contract
-              </h2>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+          <div className="glass-card rounded-2xl p-8 max-w-4xl mx-auto shadow-xl animate-scale-in">
+            {/* Upload Section */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-heading font-semibold mb-6 text-center">Upload Contract</h2>
+              <div className="space-y-6">
+                <div className="border-2 border-dashed border-primary/30 rounded-xl p-12 text-center bg-gradient-to-b from-primary/5 to-transparent hover:border-primary/50 hover:shadow-glow transition-all duration-normal group">
                   <input
                     type="file"
                     accept=".pdf,.docx,.txt"
@@ -210,78 +210,91 @@ export default function ContractReview() {
                     className="hidden"
                     id="file-upload"
                   />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <label htmlFor="file-upload" className="cursor-pointer block">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4 group-hover:bg-primary/20 transition-colors">
+                      <FileText className="w-10 h-10 text-primary" />
+                    </div>
                     {selectedFile ? (
-                      <p className="font-medium">{selectedFile.name}</p>
+                      <div className="animate-fade-in">
+                        <p className="text-lg font-medium mb-1">{selectedFile.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
                     ) : (
                       <>
-                        <p className="font-medium mb-1">Click to upload or drag and drop</p>
+                        <p className="text-lg font-medium mb-2">Click to upload or drag and drop</p>
                         <p className="text-sm text-muted-foreground">PDF, DOCX, or TXT (max 20MB)</p>
                       </>
-                     )}
-                   </label>
-                 </div>
-                 
-                 <div className="space-y-2">
-                   <label className="text-sm font-medium">Analysis Mode</label>
-                   <div className="flex gap-2">
-                     <Button
-                       type="button"
-                       variant={analysisMode === 'quick' ? 'default' : 'outline'}
-                       onClick={() => setAnalysisMode('quick')}
-                       className="flex-1"
-                       size="sm"
-                     >
-                       Quick (20k chars)
-                     </Button>
-                     <Button
-                       type="button"
-                       variant={analysisMode === 'thorough' ? 'default' : 'outline'}
-                       onClick={() => setAnalysisMode('thorough')}
-                       className="flex-1"
-                       size="sm"
-                     >
-                       Thorough (50k+ chars)
-                     </Button>
-                   </div>
-                   <p className="text-xs text-muted-foreground">
-                     {analysisMode === 'quick' 
-                       ? 'Fast analysis with flash-lite model, best for quick reviews'
-                       : 'Comprehensive analysis with chunking for large documents'}
-                   </p>
-                 </div>
-                 
-                 <Button 
-                   onClick={handleUploadAndAnalyze} 
-                   disabled={!selectedFile || isAnalyzing}
-                   className="w-full"
-                 >
-                   {isAnalyzing ? (
-                     <>
-                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                       Analyzing...
-                     </>
-                   ) : (
-                     "Upload & Analyze"
-                   )}
-                 </Button>
+                    )}
+                  </label>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold block">Analysis Mode</label>
+                  <div className="flex gap-3 bg-muted/50 p-1.5 rounded-xl">
+                    <Button
+                      type="button"
+                      variant={analysisMode === 'quick' ? 'default' : 'ghost'}
+                      onClick={() => setAnalysisMode('quick')}
+                      className="flex-1 rounded-lg"
+                      size="default"
+                    >
+                      Quick (20k chars)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={analysisMode === 'thorough' ? 'default' : 'ghost'}
+                      onClick={() => setAnalysisMode('thorough')}
+                      className="flex-1 rounded-lg"
+                      size="default"
+                    >
+                      Thorough (50k+ chars)
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {analysisMode === 'quick' 
+                      ? '⚡ Fast analysis with flash-lite model, best for quick reviews'
+                      : '🔍 Comprehensive analysis with chunking for large documents'}
+                  </p>
+                </div>
+                
+                <Button 
+                  onClick={handleUploadAndAnalyze} 
+                  disabled={!selectedFile || isAnalyzing}
+                  className="w-full h-12 text-base"
+                  size="lg"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Analyzing Contract...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 mr-2" />
+                      Upload & Analyze
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
 
-            {/* Select Existing Document */}
-            <div className="border rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Analyze Existing Document</h2>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {documents && documents.length > 0 ? (
-                  documents.map((doc) => (
+            {/* Existing Documents */}
+            {documents && documents.length > 0 && (
+              <div className="border-t pt-8">
+                <h3 className="text-lg font-heading font-semibold mb-4">Recent Documents</h3>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {documents.slice(0, 5).map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-3 border rounded hover:bg-accent cursor-pointer"
+                      className="flex items-center justify-between p-4 rounded-xl border bg-background/50 hover:bg-accent/50 hover:shadow-md cursor-pointer transition-all duration-normal group"
                       onClick={() => !isAnalyzing && handleAnalyzeExisting(doc.id)}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <FileText className="w-5 h-5 flex-shrink-0" />
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{doc.filename}</p>
                           <p className="text-sm text-muted-foreground">
@@ -289,54 +302,63 @@ export default function ContractReview() {
                           </p>
                         </div>
                       </div>
-                      {selectedDocumentId === doc.id && isAnalyzing && (
-                        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                      {selectedDocumentId === doc.id && isAnalyzing ? (
+                        <Loader2 className="w-5 h-5 animate-spin flex-shrink-0 text-primary" />
+                      ) : (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm">Analyze</Button>
+                        </div>
                       )}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No documents available. Upload a document to get started.
-                  </p>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
-            </div>
-          </>
-        ) : (
-          <div className="space-y-6">
+            )}
+          </div>
+        ) : null}
+        </div>
+      </div>
+
+      {/* Results Section */}
+      {currentReviewId && (
+        <div className="container mx-auto py-8 px-4">
+          <div className="max-w-6xl mx-auto">
             {reviewData?.review.status === 'processing' ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Analyzing Contract...</h3>
+              <div className="glass-card rounded-2xl p-12 text-center animate-fade-in">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-primary mb-6 animate-glow-pulse">
+                  <Loader2 className="w-12 h-12 animate-spin text-white" />
+                </div>
+                <h3 className="text-2xl font-heading font-semibold mb-3">Analyzing Contract...</h3>
                 
                 {reviewData.review.analysis_results && 
                  typeof reviewData.review.analysis_results === 'object' &&
                  'progress_percent' in reviewData.review.analysis_results && (
-                  <div className="max-w-md mx-auto mt-4 space-y-2">
-                    <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                  <div className="max-w-lg mx-auto mt-6 space-y-3">
+                    <div className="w-full bg-secondary h-3 rounded-full overflow-hidden shadow-inner">
                       <div 
-                        className="bg-primary h-full transition-all duration-300"
+                        className="bg-gradient-primary h-full transition-all duration-300 rounded-full shadow-glow"
                         style={{ width: `${(reviewData.review.analysis_results as any).progress_percent || 0}%` }}
                       />
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-medium">
                       Processing chunk {(reviewData.review.analysis_results as any).processed_chunks || 0} of {(reviewData.review.analysis_results as any).total_chunks || 0}
-                      {' • '}
-                      {(reviewData.review.analysis_results as any).total_findings || 0} findings so far
+                      <span className="mx-2">•</span>
+                      <span className="text-primary font-semibold">
+                        {(reviewData.review.analysis_results as any).total_findings || 0} findings
+                      </span>
                     </p>
                   </div>
                 )}
                 
-                <p className="text-muted-foreground mt-2">
+                <p className="text-muted-foreground mt-4 max-w-md mx-auto">
                   Extracting clauses, assessing risks, and benchmarking against market standards.
                 </p>
               </div>
             ) : reviewData?.review.status === 'completed' && reviewData.findings.length > 0 ? (
               <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Review Results</h2>
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between mb-8 animate-fade-in">
+                  <h2 className="text-3xl font-heading font-bold">Review Results</h2>
+                  <div className="flex gap-3">
                     <Button 
                       variant="outline" 
                       onClick={() => setShowContractViewer(true)}
@@ -345,7 +367,7 @@ export default function ContractReview() {
                       <Eye className="w-4 h-4" />
                       View Contract
                     </Button>
-                    <Button variant="outline" onClick={() => setCurrentReviewId(null)}>
+                    <Button variant="secondary" onClick={() => setCurrentReviewId(null)}>
                       New Review
                     </Button>
                   </div>
@@ -355,9 +377,11 @@ export default function ContractReview() {
                  typeof reviewData.review.analysis_results === 'object' &&
                  'was_truncated' in reviewData.review.analysis_results &&
                  reviewData.review.analysis_results.was_truncated && (
-                  <div className="border-l-4 border-warning bg-warning/10 p-4 rounded">
-                    <p className="font-medium text-warning mb-1">Large Document Notice</p>
-                    <p className="text-sm">
+                  <div className="glass-card border-l-4 border-warning p-5 rounded-xl mb-6 animate-fade-in">
+                    <p className="font-semibold text-warning mb-2 flex items-center gap-2">
+                      ⚠️ Large Document Notice
+                    </p>
+                    <p className="text-sm text-foreground/80">
                       This document was large ({(reviewData.review.analysis_results as any).total_chars?.toLocaleString()} characters). 
                       Quick mode analyzed the first {(reviewData.review.analysis_results as any).analyzed_chars?.toLocaleString()} characters. 
                       Use Thorough mode for complete analysis of large documents.
@@ -370,13 +394,18 @@ export default function ContractReview() {
                   reviewId={currentReviewId}
                 />
 
-                <div className="space-y-4">
-                  {reviewData.findings.map((finding) => (
-                    <ClauseCard
+                <div className="space-y-5">
+                  {reviewData.findings.map((finding, index) => (
+                    <div 
                       key={finding.id}
-                      finding={finding}
-                      onUpdate={refetchReview}
-                    />
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <ClauseCard
+                        finding={finding}
+                        onUpdate={refetchReview}
+                      />
+                    </div>
                   ))}
                 </div>
 
@@ -446,17 +475,17 @@ export default function ContractReview() {
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {reviewData?.review && (
-          <ContractViewer
-            open={showContractViewer}
-            onOpenChange={setShowContractViewer}
-            documentId={reviewData.review.document_id}
-            findings={reviewData.findings}
-          />
-        )}
-      </div>
+      {reviewData?.review && (
+        <ContractViewer
+          open={showContractViewer}
+          onOpenChange={setShowContractViewer}
+          documentId={reviewData.review.document_id}
+          findings={reviewData.findings}
+        />
+      )}
     </div>
   );
 }
