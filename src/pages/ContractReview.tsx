@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Loader2 } from "lucide-react";
+import { Upload, FileText, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import ClauseCard from "@/components/contract-review/ClauseCard";
 import ReviewSummary from "@/components/contract-review/ReviewSummary";
+import ContractViewer from "@/components/contract-review/ContractViewer";
 import type { User } from "@supabase/supabase-js";
 
 export default function ContractReview() {
@@ -20,6 +21,7 @@ export default function ContractReview() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [currentReviewId, setCurrentReviewId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showContractViewer, setShowContractViewer] = useState(false);
 
   // Fetch existing documents
   const { data: documents } = useQuery({
@@ -285,9 +287,19 @@ export default function ContractReview() {
               <>
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">Review Results</h2>
-                  <Button variant="outline" onClick={() => setCurrentReviewId(null)}>
-                    New Review
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowContractViewer(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Contract
+                    </Button>
+                    <Button variant="outline" onClick={() => setCurrentReviewId(null)}>
+                      New Review
+                    </Button>
+                  </div>
                 </div>
 
                 {reviewData.review.analysis_results && 
@@ -332,6 +344,15 @@ export default function ContractReview() {
               </div>
             )}
           </div>
+        )}
+
+        {reviewData?.review && (
+          <ContractViewer
+            open={showContractViewer}
+            onOpenChange={setShowContractViewer}
+            documentId={reviewData.review.document_id}
+            findings={reviewData.findings}
+          />
         )}
       </div>
     </div>
