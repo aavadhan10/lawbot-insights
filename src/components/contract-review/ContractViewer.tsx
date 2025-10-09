@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, FileText, Check, X, Save, Edit3, Eye } from "lucide-react";
+import { Loader2, FileText, Check, X, Save, Edit3, Eye, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface Finding {
@@ -27,11 +28,14 @@ interface ContractViewerProps {
 export default function ContractViewer({ open, onOpenChange, documentId, findings }: ContractViewerProps) {
   const [contractText, setContractText] = useState<string>("");
   const [editedText, setEditedText] = useState<string>("");
+  const [documentName, setDocumentName] = useState<string>("");
+  const [isEditingName, setIsEditingName] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [findingStatuses, setFindingStatuses] = useState<Record<string, string>>({});
   const [activeCard, setActiveCard] = useState<string | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<number>(1);
 
   useEffect(() => {
     if (open && documentId) {
@@ -53,7 +57,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
     try {
       const { data, error } = await supabase
         .from('documents')
-        .select('content_text')
+        .select('content_text, filename')
         .eq('id', documentId)
         .single();
 
@@ -61,6 +65,17 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
       const text = data.content_text || "";
       setContractText(text);
       setEditedText(text);
+      setDocumentName(data.filename || "Untitled Contract");
+      
+      // Get current version number
+      const { data: versions } = await supabase
+        .from('document_versions')
+        .select('version_number')
+        .eq('draft_id', documentId)
+        .order('version_number', { ascending: false })
+        .limit(1);
+      
+      setCurrentVersion(versions && versions.length > 0 ? versions[0].version_number + 1 : 1);
     } catch (error) {
       console.error('Error loading contract:', error);
     } finally {
@@ -135,20 +150,58 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
   const handleSaveContract = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Update document
+      const { error: updateError } = await supabase
         .from('documents')
-        .update({ content_text: editedText })
+        .update({ 
+          content_text: editedText,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', documentId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Create version history entry
+      const { error: versionError } = await supabase
+        .from('document_versions')
+        .insert({
+          draft_id: documentId,
+          content: editedText,
+          version_number: currentVersion,
+          created_by: user.id
+        });
+
+      if (versionError) throw versionError;
 
       setContractText(editedText);
-      toast.success("Contract saved successfully");
+      setCurrentVersion(currentVersion + 1);
+      toast.success(`Contract saved as Version ${currentVersion}`);
     } catch (error) {
       console.error('Error saving contract:', error);
       toast.error("Failed to save contract");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRenameDocument = async () => {
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ filename: documentName })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      toast.success("Document renamed successfully");
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Error renaming document:', error);
+      toast.error("Failed to rename document");
     }
   };
 
@@ -161,14 +214,53 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
       <DialogContent className="max-w-[90vw] h-[85vh] m-4 p-0 gap-0">
         <div className="bg-background h-full flex flex-col overflow-hidden">
           <div className="px-6 py-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
                 <FileText className="w-5 h-5 text-primary" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold">Contract Review</h2>
+              <div className="min-w-0 flex-1">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={documentName}
+                      onChange={(e) => setDocumentName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameDocument();
+                        if (e.key === 'Escape') setIsEditingName(false);
+                      }}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={handleRenameDocument}
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => setIsEditingName(false)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="text-xl font-semibold truncate">{documentName}</h2>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => setIsEditingName(true)}
+                      className="flex-shrink-0"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground mt-1">
-                  {appliedCount} of {findings.length} suggestions applied • {pendingCount} pending
+                  {appliedCount} of {findings.length} suggestions applied • {pendingCount} pending • Version {currentVersion - 1}
                 </p>
               </div>
             </div>

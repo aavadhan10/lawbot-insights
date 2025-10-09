@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import ClauseCard from "@/components/contract-review/ClauseCard";
 import ReviewSummary from "@/components/contract-review/ReviewSummary";
 import ContractViewer from "@/components/contract-review/ContractViewer";
+import ContractHistory from "@/components/contract-review/ContractHistory";
 import type { User } from "@supabase/supabase-js";
 
 export default function ContractReview() {
@@ -322,6 +323,11 @@ export default function ContractReview() {
                       onUpdate={refetchReview}
                     />
                   ))}
+                </div>
+
+                {/* Contract History Section */}
+                <div className="mt-8">
+                  <ContractHistory documentId={reviewData.review.document_id} />
                 </div>
               </>
             ) : reviewData?.review.status === 'completed' && reviewData.findings.length === 0 ? (
