@@ -15,6 +15,7 @@ import Assistant from "./pages/Assistant";
 import Repository from "./pages/Repository";
 import DocumentDrafter from "./pages/DocumentDrafter";
 import HistoryPage from "./pages/HistoryPage";
+import ContractReview from "./pages/ContractReview";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
@@ -54,6 +55,7 @@ const App = () => {
               <Route path="/" element={<Landing />} />
               <Route path="/assistant" element={<ProtectedRoute><AppContent><Assistant /></AppContent></ProtectedRoute>} />
               <Route path="/repository" element={<ProtectedRoute><AppContent><Repository /></AppContent></ProtectedRoute>} />
+              <Route path="/contract-review" element={<ProtectedRoute><AppContent><ContractReview /></AppContent></ProtectedRoute>} />
               <Route path="/drafter" element={<ProtectedRoute><AppContent><DocumentDrafter /></AppContent></ProtectedRoute>} />
               <Route path="/history" element={<ProtectedRoute><AppContent><HistoryPage /></AppContent></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><AppContent><Settings /></AppContent></ProtectedRoute>} />

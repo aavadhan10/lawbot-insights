@@ -4,6 +4,7 @@ import {
   FolderOpen,
   FileEdit,
   Clock,
+  FileCheck,
   Settings,
   HelpCircle,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 const mainItems = [
   { title: "Assistant", url: "/assistant", icon: Bot },
   { title: "Repository", url: "/repository", icon: FolderOpen },
+  { title: "Contract Review", url: "/contract-review", icon: FileCheck },
   { title: "Document Drafter", url: "/drafter", icon: FileEdit },
   { title: "History", url: "/history", icon: Clock },
 ];

@@ -801,6 +801,22 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: string
       }
+      match_benchmark_clauses: {
+        Args: {
+          filter_clause_type?: string
+          match_count: number
+          match_threshold: number
+          query_embedding: string
+        }
+        Returns: {
+          clause_text: string
+          clause_type: string
+          id: string
+          is_favorable: boolean
+          similarity: number
+          source_document: string
+        }[]
+      }
       match_document_chunks: {
         Args: {
           filter_document_ids?: string[]
