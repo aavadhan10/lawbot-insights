@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, FileText, Check, X } from "lucide-react";
@@ -138,24 +138,30 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
   const appliedCount = Object.values(findingStatuses).filter(s => s === 'applied').length;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-[95vw] p-0">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-full w-screen h-screen m-0 p-0 gap-0">
         <div className="bg-background h-full flex flex-col">
-          <SheetHeader className="px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <SheetTitle className="text-xl">Contract Review</SheetTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {appliedCount} of {findings.length} suggestions applied • {pendingCount} pending
-                  </p>
-                </div>
+          <div className="px-6 py-4 border-b flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Contract Review</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {appliedCount} of {findings.length} suggestions applied • {pendingCount} pending
+                </p>
               </div>
             </div>
-          </SheetHeader>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
           
           {isLoading ? (
             <div className="flex items-center justify-center flex-1">
@@ -273,7 +279,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
             </div>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
