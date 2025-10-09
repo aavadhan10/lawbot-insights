@@ -312,8 +312,12 @@ export const DocumentEditor = ({
   };
 
   const handleSaveTitle = async () => {
-    if (!draftId || tempTitle.trim() === "") {
-      toast.error("Title cannot be empty");
+    if (!draftId) return;
+    
+    // If title is empty, just cancel the edit instead of showing error
+    if (tempTitle.trim() === "") {
+      setTempTitle(editableTitle);
+      setIsEditingTitle(false);
       return;
     }
 
@@ -465,10 +469,10 @@ export const DocumentEditor = ({
                 </Button>
               </>
             ) : (
-              <>
+            <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="text-lg font-semibold flex-1 min-w-0 truncate">
+                    <span className="text-lg font-semibold flex-1 min-w-0 truncate max-w-[600px]">
                       {editableTitle}
                     </span>
                   </TooltipTrigger>
