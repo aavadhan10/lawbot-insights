@@ -221,7 +221,7 @@ export default function Repository() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-background via-muted/30 to-background">
+    <div className="flex flex-col h-full bg-background">
       <div className="px-6 pt-6 flex-shrink-0">
         <div className="max-w-7xl mx-auto glass-card rounded-2xl shadow-xl border p-6">
           <div className="flex items-center justify-between">

@@ -35,16 +35,21 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // Try to get profile, but don't error if it doesn't exist
+      const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-
-      setFullName(data.full_name || "");
-      setEmail(data.email || user.email || "");
+      if (data) {
+        setFullName(data.full_name || "");
+        setEmail(data.email || user.email || "");
+      } else {
+        // No profile exists yet, use user data
+        setFullName(user.user_metadata?.full_name || "");
+        setEmail(user.email || "");
+      }
     } catch (error: any) {
       console.error("Error loading profile:", error);
     }
@@ -61,10 +66,16 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Use upsert to create profile if it doesn't exist
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: fullName.trim() })
-        .eq("id", user.id);
+        .upsert({ 
+          id: user.id,
+          full_name: fullName.trim(),
+          email: user.email || ""
+        }, {
+          onConflict: 'id'
+        });
 
       if (error) throw error;
 
