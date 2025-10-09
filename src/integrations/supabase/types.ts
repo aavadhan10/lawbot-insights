@@ -14,6 +14,136 @@ export type Database = {
   }
   public: {
     Tables: {
+      benchmark_clauses: {
+        Row: {
+          clause_text: string
+          clause_type: string
+          created_at: string
+          embedding: string | null
+          id: string
+          industry: string | null
+          is_favorable: boolean | null
+          metadata: Json | null
+          source_document: string
+        }
+        Insert: {
+          clause_text: string
+          clause_type: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          industry?: string | null
+          is_favorable?: boolean | null
+          metadata?: Json | null
+          source_document: string
+        }
+        Update: {
+          clause_text?: string
+          clause_type?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          industry?: string | null
+          is_favorable?: boolean | null
+          metadata?: Json | null
+          source_document?: string
+        }
+        Relationships: []
+      }
+      clause_findings: {
+        Row: {
+          benchmark_data: Json | null
+          clause_text: string
+          clause_title: string
+          created_at: string
+          id: string
+          issue_description: string
+          original_text: string
+          recommendation: string
+          review_id: string
+          risk_level: string
+          status: string
+          suggested_text: string
+        }
+        Insert: {
+          benchmark_data?: Json | null
+          clause_text: string
+          clause_title: string
+          created_at?: string
+          id?: string
+          issue_description: string
+          original_text: string
+          recommendation: string
+          review_id: string
+          risk_level: string
+          status?: string
+          suggested_text: string
+        }
+        Update: {
+          benchmark_data?: Json | null
+          clause_text?: string
+          clause_title?: string
+          created_at?: string
+          id?: string
+          issue_description?: string
+          original_text?: string
+          recommendation?: string
+          review_id?: string
+          risk_level?: string
+          status?: string
+          suggested_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clause_findings_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "contract_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_reviews: {
+        Row: {
+          analysis_results: Json | null
+          created_at: string
+          document_id: string
+          id: string
+          organization_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_results?: Json | null
+          created_at?: string
+          document_id: string
+          id?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_results?: Json | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_reviews_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           conversation_type: string

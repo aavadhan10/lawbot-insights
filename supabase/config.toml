@@ -1,5 +1,14 @@
 project_id = "rjdxurhnegmomysonpxz"
 
+[functions.analyze-contract]
+verify_jwt = true
+
+[functions.benchmark-clause]
+verify_jwt = true
+
+[functions.import-cuad-batch]
+verify_jwt = false
+
 [functions.analyze-data]
 verify_jwt = false
 
@@ -14,9 +23,6 @@ verify_jwt = false
 
 [functions.draft-document]
 verify_jwt = true
-
-[functions.import-cuad-batch]
-verify_jwt = false
 
 [functions.check-vectorization-status]
 verify_jwt = false

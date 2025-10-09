@@ -1,4 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 
@@ -7,172 +6,200 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CUADContract {
-  title: string;
-  paragraphs: string[];
-  qa: Array<{
-    question: string;
-    answers: string[];
-    is_impossible: boolean;
-  }>;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { githubUrl, organizationId, userId } = await req.json();
+    const { contracts } = await req.json();
     
-    if (!githubUrl || !organizationId || !userId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters: githubUrl, organizationId, userId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!contracts || !Array.isArray(contracts)) {
+      throw new Error('contracts array is required');
     }
 
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'Supabase configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    console.log(`Processing ${contracts.length} CUAD contracts`);
 
-    console.log(`Fetching CUAD dataset from: ${githubUrl}`);
+    const results = {
+      processed: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
 
-    // Fetch CUAD_v1.json from GitHub
-    const response = await fetch(githubUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch CUAD dataset: ${response.status} ${response.statusText}`);
-    }
+    // Process contracts in batches
+    for (const contract of contracts) {
+      try {
+        const { filename, content, clauseType } = contract;
 
-    const cuadData = await response.json();
-    const contracts: CUADContract[] = cuadData.data || [];
-    
-    console.log(`Found ${contracts.length} contracts in CUAD dataset`);
+        if (!content || content.length < 50) {
+          console.log(`Skipping ${filename}: content too short`);
+          continue;
+        }
 
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
-    const errors: string[] = [];
+        // Extract key clauses from the contract using AI
+        const extractResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { 
+                role: 'system', 
+                content: 'Extract important contract clauses from the provided text. Focus on identifying distinct, meaningful clauses related to liability, termination, IP, warranties, indemnification, and other key contract terms.' 
+              },
+              { 
+                role: 'user', 
+                content: `Extract key clauses from this contract:\n\n${content}` 
+              }
+            ],
+            tools: [{
+              type: 'function',
+              function: {
+                name: 'extract_clauses',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    clauses: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          type: { type: 'string' },
+                          text: { type: 'string' },
+                          is_favorable: { type: 'boolean' }
+                        },
+                        required: ['type', 'text', 'is_favorable']
+                      }
+                    }
+                  },
+                  required: ['clauses']
+                }
+              }
+            }],
+            tool_choice: { type: 'function', function: { name: 'extract_clauses' } }
+          })
+        });
 
-    // Process in batches of 50
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < contracts.length; i += BATCH_SIZE) {
-      const batch = contracts.slice(i, Math.min(i + BATCH_SIZE, contracts.length));
-      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(contracts.length / BATCH_SIZE)} (${batch.length} contracts)`);
+        if (!extractResponse.ok) {
+          results.failed++;
+          results.errors.push(`${filename}: AI extraction failed`);
+          continue;
+        }
 
-      const inserts = [];
-      
-      for (const contract of batch) {
-        try {
-          // Check if contract already exists
-          const { data: existing } = await supabase
-            .from('documents')
-            .select('id')
-            .eq('filename', contract.title)
-            .eq('organization_id', organizationId)
-            .maybeSingle();
+        const extractData = await extractResponse.json();
+        const toolCall = extractData.choices?.[0]?.message?.tool_calls?.[0];
+        
+        if (!toolCall) {
+          results.failed++;
+          results.errors.push(`${filename}: No clauses extracted`);
+          continue;
+        }
 
-          if (existing) {
-            console.log(`Skipping existing contract: ${contract.title}`);
-            skipped++;
+        const clauses = JSON.parse(toolCall.function.arguments).clauses;
+
+        // Generate embeddings for each clause
+        for (const clause of clauses) {
+          const embeddingResponse = await fetch('https://ai.gateway.lovable.dev/v1/embeddings', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'text-embedding-3-small',
+              input: clause.text
+            })
+          });
+
+          if (!embeddingResponse.ok) {
+            console.error(`Failed to generate embedding for clause in ${filename}`);
             continue;
           }
 
-          // Infer contract type from title
-          const title = contract.title.toLowerCase();
-          let contractType = 'General Agreement';
-          if (title.includes('distribution') || title.includes('distributor')) {
-            contractType = 'Distribution Agreement';
-          } else if (title.includes('nda') || title.includes('non-disclosure') || title.includes('confidentiality')) {
-            contractType = 'Non-Disclosure Agreement';
-          } else if (title.includes('employment') || title.includes('employee')) {
-            contractType = 'Employment Agreement';
-          } else if (title.includes('license') || title.includes('licensing')) {
-            contractType = 'License Agreement';
-          } else if (title.includes('service')) {
-            contractType = 'Service Agreement';
-          } else if (title.includes('joint venture')) {
-            contractType = 'Joint Venture Agreement';
+          const embeddingData = await embeddingResponse.json();
+          const embedding = embeddingData.data[0].embedding;
+
+          // Insert into benchmark_clauses
+          const { error: insertError } = await supabase
+            .from('benchmark_clauses')
+            .insert({
+              clause_type: clause.type || clauseType || 'general',
+              clause_text: clause.text,
+              source_document: filename,
+              industry: extractIndustry(filename),
+              is_favorable: clause.is_favorable,
+              metadata: {
+                original_filename: filename,
+                extraction_date: new Date().toISOString()
+              },
+              embedding
+            });
+
+          if (insertError) {
+            console.error(`Error inserting clause from ${filename}:`, insertError);
           }
-
-          // Combine paragraphs into content
-          const contentText = contract.paragraphs.join('\n\n');
-
-          // Prepare metadata
-          const metadata = {
-            source: 'CUAD',
-            contract_type: contractType,
-            cuad_annotations: contract.qa,
-            total_clauses: contract.qa.length,
-            import_date: new Date().toISOString(),
-          };
-
-          inserts.push({
-            organization_id: organizationId,
-            user_id: userId,
-            filename: contract.title,
-            content_text: contentText,
-            file_type: 'cuad_contract',
-            file_size: contentText.length,
-            metadata: metadata,
-            is_vectorized: false,
-            vectorization_status: 'pending',
-          });
-
-        } catch (error) {
-          console.error(`Error processing contract ${contract.title}:`, error);
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`${contract.title}: ${errorMsg}`);
-          failed++;
         }
+
+        results.processed++;
+        console.log(`Processed ${filename}: ${clauses.length} clauses`);
+
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`${contract.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(`Error processing ${contract.filename}:`, error);
       }
 
-      // Insert batch
-      if (inserts.length > 0) {
-        const { error: insertError } = await supabase
-          .from('documents')
-          .insert(inserts);
-
-        if (insertError) {
-          console.error('Batch insert error:', insertError);
-          errors.push(`Batch insert failed: ${insertError.message}`);
-          failed += inserts.length;
-        } else {
-          imported += inserts.length;
-          console.log(`Successfully inserted ${inserts.length} contracts`);
-        }
-      }
+      // Add small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    console.log(`Import complete: ${imported} imported, ${skipped} skipped, ${failed} failed`);
+    console.log(`Import completed: ${results.processed} processed, ${results.failed} failed`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        summary: {
-          total: contracts.length,
-          imported,
-          skipped,
-          failed,
-        },
-        errors: errors.length > 0 ? errors.slice(0, 10) : undefined, // Return first 10 errors
+      JSON.stringify({ 
+        success: true, 
+        results 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
     );
-
   } catch (error) {
-    console.error('Error in import-cuad-batch function:', error);
+    console.error('Error in import-cuad-batch:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
     );
   }
 });
+
+function extractIndustry(filename: string): string | null {
+  const industries = [
+    'technology', 'healthcare', 'finance', 'retail', 'manufacturing',
+    'real estate', 'telecommunications', 'energy', 'media', 'automotive'
+  ];
+  
+  const lower = filename.toLowerCase();
+  for (const industry of industries) {
+    if (lower.includes(industry)) {
+      return industry;
+    }
+  }
+  
+  return null;
+}
