@@ -4,12 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MessageSquare, Trash2, ChevronDown, ChevronRight, FileText, Eye } from "lucide-react";
+import { Search, MessageSquare, Trash2, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import ContractHistory from "@/components/contract-review/ContractHistory";
+
 
 interface Message {
   id: string;
@@ -60,7 +60,6 @@ export default function HistoryPage() {
   const [expandedConvId, setExpandedConvId] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'conversations' | 'drafts' | 'contracts'>('conversations');
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -164,6 +163,32 @@ export default function HistoryPage() {
     } catch (error: any) {
       console.error("Error deleting draft:", error);
       toast.error("Failed to delete draft");
+    }
+  };
+
+  const handleDeleteContract = async (reviewId: string, documentId: string) => {
+    try {
+      // Delete the contract review
+      const { error: reviewError } = await supabase
+        .from("contract_reviews")
+        .delete()
+        .eq("id", reviewId);
+
+      if (reviewError) throw reviewError;
+
+      // Delete the document
+      const { error: docError } = await supabase
+        .from("documents")
+        .delete()
+        .eq("id", documentId);
+
+      if (docError) throw docError;
+
+      setContractReviews(contractReviews.filter(r => r.id !== reviewId));
+      toast.success("Contract deleted");
+    } catch (error: any) {
+      console.error("Error deleting contract:", error);
+      toast.error("Failed to delete contract");
     }
   };
 
@@ -317,24 +342,25 @@ export default function HistoryPage() {
                           </Badge>
                         )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedContractId(
-                          selectedContractId === review.document_id ? null : review.document_id
-                        )}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        {selectedContractId === review.document_id ? 'Hide' : 'View'} Version History
-                      </Button>
+                      <div className="flex items-center gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate('/contract-review')}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteContract(review.id, review.document_id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  
-                  {selectedContractId === review.document_id && (
-                    <div className="mt-6 border-t pt-6">
-                      <ContractHistory documentId={review.document_id} />
-                    </div>
-                  )}
                 </Card>
               ))}
             </div>
