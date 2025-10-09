@@ -67,7 +67,56 @@ export const DocumentEditor = ({
   const [editableTitle, setEditableTitle] = useState(title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [textColor, setTextColor] = useState("#000000");
+  const [isDragging, setIsDragging] = useState(false);
   const editorRef = useRef<RichTextEditorRef>(null);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['.pdf', '.docx', '.doc', '.txt'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    if (!validTypes.includes(fileExtension)) {
+      toast.error("Please upload a PDF, Word, or TXT file");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data, error } = await supabase.functions.invoke('parse-document', {
+        body: formData,
+      });
+
+      if (error) throw error;
+
+      if (data?.text) {
+        setEditorContent(data.text);
+        toast.success(`${file.name} loaded successfully`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error("Failed to load file");
+    }
+  };
 
   useEffect(() => {
     setEditorContent(content);
@@ -467,11 +516,24 @@ export const DocumentEditor = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-96 bg-background rounded-xl shadow-lg border">
-                <FileText className="h-16 w-16 text-muted-foreground/40 mb-4" />
-                <h2 className="text-2xl font-semibold text-foreground mb-2">Start Your Document</h2>
+              <div 
+                className={`flex flex-col items-center justify-center h-96 bg-background rounded-xl shadow-lg border-2 border-dashed transition-all ${
+                  isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <FileText className={`h-16 w-16 mb-4 transition-colors ${
+                  isDragging ? 'text-primary' : 'text-muted-foreground/40'
+                }`} />
+                <h2 className="text-2xl font-semibold text-foreground mb-2">
+                  {isDragging ? 'Drop document here' : 'Start Your Document'}
+                </h2>
                 <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
-                  Use the chat to generate a new document or upload an existing one to get started
+                  {isDragging 
+                    ? 'Release to load the document' 
+                    : 'Use the chat to generate a new document, upload an existing one, or drag & drop a file here'}
                 </p>
               </div>
             )}
