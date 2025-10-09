@@ -185,14 +185,6 @@ export default function ContractReview() {
 
         {!currentReviewId ? (
           <>
-            <div className="border-l-4 border-primary bg-primary/10 p-4 rounded mb-6">
-              <p className="font-medium mb-1">Document Size Limit</p>
-              <p className="text-sm text-muted-foreground">
-                For optimal performance, documents larger than 50,000 characters will be analyzed partially. 
-                Complex contracts may take 30-60 seconds to analyze.
-              </p>
-            </div>
-
             <div className="grid lg:grid-cols-2 gap-6">
             {/* Upload New Contract */}
             <div className="border rounded-lg p-6">

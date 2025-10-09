@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 
 interface Finding {
   id: string;
@@ -68,10 +68,10 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
           marker
         );
         
-        // Replace the marker with the highlighted version
-        const replacement = `<span class="relative inline-block">
-          <span class="line-through text-destructive/70 bg-destructive/10 px-1">${originalText}</span>
-          <span class="text-success bg-success/10 px-1 ml-1 font-medium">${suggestedText}</span>
+        // Replace the marker with the highlighted version (strikethrough in red, suggestion in blue)
+        const replacement = `<span class="inline">
+          <span class="line-through decoration-2" style="color: #dc2626; background-color: rgba(254, 202, 202, 0.3);">${originalText}</span>
+          <span class="font-normal" style="color: #1e40af; background-color: rgba(191, 219, 254, 0.5);"> ${suggestedText}</span>
         </span>`;
         
         highlightedText = highlightedText.replace(marker, replacement);
@@ -83,36 +83,50 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-4xl">
-        <SheetHeader>
-          <SheetTitle>Contract with Highlighted Changes</SheetTitle>
-        </SheetHeader>
-        
-        <ScrollArea className="h-[calc(100vh-8rem)] mt-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin" />
+      <SheetContent side="right" className="w-full sm:max-w-3xl lg:max-w-5xl p-0">
+        <div className="bg-gradient-to-b from-primary/5 to-background h-full flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+              <SheetTitle className="text-xl">Contract Document</SheetTitle>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex gap-4 text-sm mb-4 p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span className="line-through text-destructive/70 bg-destructive/10 px-2 py-1 rounded">Original</span>
-                  <span className="text-muted-foreground">= Problematic text</span>
+          </SheetHeader>
+          
+          <ScrollArea className="flex-1 px-6 py-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex gap-6 text-xs p-4 bg-background border rounded-lg shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="line-through decoration-2 px-2 py-1 rounded" style={{ color: '#dc2626', backgroundColor: 'rgba(254, 202, 202, 0.3)' }}>Strikethrough</span>
+                    <span className="text-muted-foreground">= Problematic</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 rounded" style={{ color: '#1e40af', backgroundColor: 'rgba(191, 219, 254, 0.5)' }}>Highlighted</span>
+                    <span className="text-muted-foreground">= Suggested</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-success bg-success/10 px-2 py-1 rounded font-medium">Suggested</span>
-                  <span className="text-muted-foreground">= Recommended replacement</span>
+                
+                <div className="bg-background rounded-lg shadow-md border p-12 min-h-[600px]">
+                  <div 
+                    className="text-foreground text-[15px] leading-[1.8] whitespace-pre-wrap"
+                    style={{ 
+                      fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                      textAlign: 'justify',
+                      hyphens: 'auto'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
+                  />
                 </div>
               </div>
-              
-              <div 
-                className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
-              />
-            </div>
-          )}
-        </ScrollArea>
+            )}
+          </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );
