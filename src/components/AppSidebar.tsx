@@ -1,4 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Bot,
   FolderOpen,
@@ -38,6 +40,38 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
+  const [userName, setUserName] = useState<string>("Briefly");
+  const [isLoadingName, setIsLoadingName] = useState(true);
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoadingName(false);
+          return;
+        }
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+
+        if (!error && profile?.full_name) {
+          // Extract first name only
+          const firstName = profile.full_name.split(' ')[0];
+          setUserName(firstName);
+        }
+      } catch (error) {
+        console.error("Error fetching user name:", error);
+      } finally {
+        setIsLoadingName(false);
+      }
+    };
+
+    fetchUserName();
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -47,9 +81,13 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold font-heading">B</span>
+              <span className="text-primary-foreground font-bold font-heading">
+                {userName[0]?.toUpperCase() || 'B'}
+              </span>
             </div>
-            <span className="text-base font-heading font-semibold">Briefly</span>
+            <span className="text-base font-heading font-semibold">
+              {isLoadingName ? "Loading..." : userName}
+            </span>
           </div>
         )}
       </SidebarHeader>

@@ -156,9 +156,9 @@ export default function Assistant() {
 
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0 bg-card">
         <h1 className="text-3xl font-semibold">Briefly AI Assistant</h1>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
@@ -191,7 +191,7 @@ export default function Assistant() {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Quick Actions */}
-        <div className="px-6 py-4 border-b flex-shrink-0">
+        <div className="px-6 py-4 border-b flex-shrink-0 bg-card">
           <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setPromptLibraryOpen(true)}>

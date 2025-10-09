@@ -74,6 +74,7 @@ export default function HistoryPage() {
       const { data, error } = await supabase
         .from("conversations")
         .select("id, title, created_at, updated_at, conversation_type")
+        .eq("conversation_type", "assistant")
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -88,13 +89,26 @@ export default function HistoryPage() {
 
   const loadDrafts = async () => {
     try {
-      const { data, error } = await supabase
+      // Load document_drafts directly
+      const { data: draftsData, error: draftsError } = await supabase
         .from("document_drafts")
         .select("id, title, document_type, created_at, updated_at, current_version, conversation_id")
         .order("updated_at", { ascending: false });
 
-      if (error) throw error;
-      setDrafts(data || []);
+      if (draftsError) throw draftsError;
+
+      // Also load drafter conversations
+      const { data: convData, error: convError } = await supabase
+        .from("conversations")
+        .select("id, title, created_at, updated_at, conversation_type")
+        .eq("conversation_type", "drafter")
+        .order("updated_at", { ascending: false });
+
+      if (convError) throw convError;
+
+      // Combine both into a unified list (prioritize drafts)
+      const allDrafts = [...(draftsData || [])];
+      setDrafts(allDrafts);
     } catch (error: any) {
       console.error("Error loading drafts:", error);
       toast.error("Failed to load drafts");
@@ -216,8 +230,8 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div className="flex flex-col h-full bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
         <h1 className="text-2xl font-semibold">History</h1>
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -230,12 +244,12 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 px-6 py-3 border-b">
+      <div className="flex gap-2 px-6 py-3 border-b bg-card">
         <Button
           variant={activeTab === 'conversations' ? 'default' : 'outline'}
           onClick={() => setActiveTab('conversations')}
         >
-          Conversations
+          Assistant Chats
         </Button>
         <Button
           variant={activeTab === 'drafts' ? 'default' : 'outline'}

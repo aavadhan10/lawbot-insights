@@ -105,7 +105,7 @@ const DocumentDrafter = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-gradient-to-br from-background via-muted/30 to-background">
       <div className="border-b px-6 py-3 flex-shrink-0 bg-card flex items-center justify-between">
         <h1 className="text-xl font-semibold">Document Drafter</h1>
         <DraftVersionHistory 
