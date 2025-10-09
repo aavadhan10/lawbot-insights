@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Trash2, File } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -73,50 +74,88 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) 
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-4 space-y-2">
-        <h3 className="text-sm font-semibold mb-3">Recent Drafts</h3>
-        {drafts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No drafts yet</p>
-        ) : (
-          drafts.map((draft) => (
-            <div
-              key={draft.id}
-              onClick={() => onSelectDraft(draft.id, draft.conversation_id)}
-              className={`
-                p-3 rounded-lg cursor-pointer transition-colors
-                ${selectedDraftId === draft.id 
-                  ? 'bg-primary/10 border border-primary' 
-                  : 'hover:bg-accent border border-transparent'
-                }
-              `}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                  <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{draft.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {draft.document_type} • v{draft.current_version}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(draft.updated_at), { addSuffix: true })}
-                    </p>
-                  </div>
+    <div className="h-full flex flex-col border-r bg-background">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold">Documents</h2>
+      </div>
+      
+      <Tabs defaultValue="drafts" className="flex-1 flex flex-col">
+        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
+          <TabsTrigger value="drafts" className="text-xs">
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
+            Drafts
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="text-xs">
+            <File className="h-3.5 w-3.5 mr-1.5" />
+            Templates
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="drafts" className="flex-1 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-2">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading drafts...</p>
+              ) : drafts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm font-medium text-foreground mb-1">No drafts yet</p>
+                  <p className="text-xs text-muted-foreground">Start a conversation to create your first draft</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 flex-shrink-0"
-                  onClick={(e) => deleteDraft(draft.id, e)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+              ) : (
+                drafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    onClick={() => onSelectDraft(draft.id, draft.conversation_id)}
+                    className={`
+                      p-3 rounded-lg cursor-pointer transition-all
+                      ${selectedDraftId === draft.id 
+                        ? 'bg-primary/10 border-2 border-primary shadow-sm' 
+                        : 'hover:bg-accent border-2 border-transparent'
+                      }
+                    `}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        <FileText className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{draft.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {draft.document_type} • v{draft.current_version}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(draft.updated_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={(e) => deleteDraft(draft.id, e)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+        
+        <TabsContent value="templates" className="flex-1 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-4">
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <File className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                <p className="text-sm font-medium text-foreground mb-1">Templates Coming Soon</p>
+                <p className="text-xs text-muted-foreground">Save and reuse your favorite document templates</p>
               </div>
             </div>
-          ))
-        )}
-      </div>
-    </ScrollArea>
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { DraftingChatInterface } from "@/components/DraftingChatInterface";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import { DraftsList } from "@/components/DraftsList";
 import { DraftVersionHistory } from "@/components/DraftVersionHistory";
+import { ChatDialog } from "@/components/ChatDialog";
 import { useToast } from "@/hooks/use-toast";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
+import { MessageSquare } from "lucide-react";
 
 const DocumentDrafter = () => {
   const [documentContent, setDocumentContent] = useState("");
@@ -15,6 +16,7 @@ const DocumentDrafter = () => {
   const [selectedDraftId, setSelectedDraftId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
 
   // Check localStorage for selectedDraftId on mount
@@ -106,10 +108,18 @@ const DocumentDrafter = () => {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background via-muted/30 to-background">
-      <div className="px-6 pt-6 flex-shrink-0">
-        <div className="max-w-7xl mx-auto glass-card rounded-2xl shadow-xl border p-6">
+      {/* Header */}
+      <div className="px-6 py-8 flex-shrink-0 border-b bg-background/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Document Drafter</h1>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Document Drafter</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  AI: Ready
+                </span>
+              </div>
+            </div>
             <DraftVersionHistory 
               draftId={currentDraftId || ''} 
               onRestoreVersion={handleRestoreVersion}
@@ -118,43 +128,48 @@ const DocumentDrafter = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel defaultSize={15} minSize={10} maxSize={25}>
-            <DraftsList
-              onSelectDraft={handleSelectDraft}
-              selectedDraftId={selectedDraftId}
-            />
-          </ResizablePanel>
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Left Sidebar - Drafts List */}
+        <div className="w-80 flex-shrink-0">
+          <DraftsList
+            onSelectDraft={handleSelectDraft}
+            selectedDraftId={selectedDraftId}
+          />
+        </div>
 
-          <ResizableHandle />
-
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-            <DraftingChatInterface
-              onDocumentGenerated={handleDocumentGenerated}
-              onGeneratingChange={setIsGenerating}
-              selectedDraftId={selectedDraftId}
-              selectedConversationId={selectedConversationId}
-              onDocumentNameChange={setDocumentTitle}
-            />
-          </ResizablePanel>
+        {/* Right - Document Editor */}
+        <div className="flex-1 relative">
+          <DocumentEditor
+            content={displayedContent}
+            title={documentTitle}
+            changes={documentChanges}
+            isGenerating={isGenerating}
+            onExport={handleExport}
+            draftId={currentDraftId}
+          />
           
-          <ResizableHandle withHandle />
-          
-          <ResizablePanel defaultSize={60} minSize={40}>
-            <div className="h-full">
-              <DocumentEditor
-                content={displayedContent}
-                title={documentTitle}
-                changes={documentChanges}
-                isGenerating={isGenerating}
-                onExport={handleExport}
-                draftId={currentDraftId}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          {/* Floating Chat Button */}
+          <Button
+            onClick={() => setIsChatOpen(true)}
+            className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all"
+            size="icon"
+          >
+            <MessageSquare className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
+
+      {/* Chat Dialog */}
+      <ChatDialog
+        open={isChatOpen}
+        onOpenChange={setIsChatOpen}
+        onDocumentGenerated={handleDocumentGenerated}
+        onGeneratingChange={setIsGenerating}
+        selectedDraftId={selectedDraftId}
+        selectedConversationId={selectedConversationId}
+        onDocumentNameChange={setDocumentTitle}
+      />
     </div>
   );
 };
