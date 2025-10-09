@@ -61,7 +61,7 @@ export const FeedbackModal = ({ open, onOpenChange }: FeedbackModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-background">
         <DialogHeader>
           <DialogTitle>Help Us Improve Briefly AI</DialogTitle>
         </DialogHeader>

@@ -84,7 +84,7 @@ export const DocumentSelector = ({ open, onOpenChange, onSelectDocuments }: Docu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh] bg-background">
         <DialogHeader>
           <DialogTitle>Select Documents from Repository</DialogTitle>
         </DialogHeader>
