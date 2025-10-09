@@ -40,6 +40,7 @@ interface Version {
   version_number: number;
   content: string;
   created_at: string;
+  changes_summary?: string;
 }
 
 interface DocumentEditorProps {
@@ -71,6 +72,7 @@ export const DocumentEditor = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [lastVersionContent, setLastVersionContent] = useState(content);
   const editorRef = useRef<RichTextEditorRef>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -124,6 +126,7 @@ export const DocumentEditor = ({
   useEffect(() => {
     setEditorContent(content);
     setOriginalContent(content);
+    setLastVersionContent(content);
     setEditableTitle(title);
     if (draftId) {
       loadVersions();
@@ -134,15 +137,31 @@ export const DocumentEditor = ({
     if (!draftId) return;
     
     const { data, error } = await supabase
-      .from('document_versions')
+      .from('draft_versions')
       .select('*')
       .eq('draft_id', draftId)
       .order('version_number', { ascending: false });
 
     if (!error && data) {
-      setVersions(data);
-      if (data.length > 0) {
-        setCurrentVersion(data[0].version_number);
+      const formattedVersions = data.map(v => {
+        let contentText = '';
+        if (typeof v.content === 'string') {
+          contentText = v.content;
+        } else if (v.content && typeof v.content === 'object' && 'text' in v.content) {
+          contentText = (v.content as any).text || '';
+        }
+        
+        return {
+          id: v.id,
+          version_number: v.version_number,
+          content: contentText,
+          created_at: v.created_at,
+          changes_summary: v.changes_summary
+        };
+      });
+      setVersions(formattedVersions as any);
+      if (formattedVersions.length > 0) {
+        setCurrentVersion(formattedVersions[0].version_number);
       }
     }
   };
@@ -174,38 +193,61 @@ export const DocumentEditor = ({
     }
   };
 
-  // Auto-save with debouncing
+  // Auto-save with debouncing (30 seconds for smarter versioning)
   useEffect(() => {
-    if (!draftId || !editorContent || editorContent === originalContent) return;
+    if (!draftId || !editorContent) return;
 
     const timer = setTimeout(async () => {
+      // Always save the draft
       await saveDraft(false);
-      // Also create a version snapshot automatically
-      await saveVersionSnapshot();
-    }, 3000);
+      
+      // Only create version if there are meaningful changes (>100 chars difference or 10% change)
+      const charDiff = Math.abs(editorContent.length - lastVersionContent.length);
+      const changePercent = (charDiff / Math.max(lastVersionContent.length, 1)) * 100;
+      
+      if (charDiff > 100 || changePercent > 10) {
+        await saveVersionSnapshot();
+      }
+    }, 30000); // 30 seconds
 
     return () => clearTimeout(timer);
   }, [editorContent, draftId]);
 
+  const calculateChangesSummary = (oldContent: string, newContent: string): string => {
+    const oldLength = oldContent.length;
+    const newLength = newContent.length;
+    const diff = newLength - oldLength;
+    
+    if (diff > 0) {
+      return `Added ~${diff} characters`;
+    } else if (diff < 0) {
+      return `Removed ~${Math.abs(diff)} characters`;
+    } else {
+      return 'Content modified';
+    }
+  };
+
   const saveVersionSnapshot = async () => {
-    if (!draftId || !editorContent || editorContent === originalContent) return;
+    if (!draftId || !editorContent) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const nextVersion = currentVersion + 1;
+    const changesSummary = calculateChangesSummary(lastVersionContent, editorContent);
     
     const { error } = await supabase
-      .from('document_versions')
+      .from('draft_versions')
       .insert({
         draft_id: draftId,
         version_number: nextVersion,
-        content: editorContent,
-        created_by: user.id
+        content: { text: editorContent, changes: [] },
+        changes_summary: changesSummary
       });
 
     if (!error) {
       setCurrentVersion(nextVersion);
+      setLastVersionContent(editorContent);
       loadVersions();
     }
   };
@@ -352,7 +394,7 @@ export const DocumentEditor = ({
                 <span className="hidden sm:inline">Version History</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuContent align="end" className="w-72">
               {versions.length > 0 ? (
                 versions.map((version) => (
                   <DropdownMenuItem 
@@ -360,10 +402,17 @@ export const DocumentEditor = ({
                     onClick={() => loadVersion(version.id)}
                     className="flex flex-col items-start py-3"
                   >
-                    <span className="font-medium">Version {version.version_number}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(version.created_at).toLocaleString()}
-                    </span>
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span className="font-medium">Version {version.version_number}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                    {version.changes_summary && (
+                      <span className="text-xs text-muted-foreground italic">
+                        {version.changes_summary}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 ))
               ) : (
