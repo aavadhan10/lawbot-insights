@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import { DraftsList } from "@/components/DraftsList";
-import { DraftVersionHistory } from "@/components/DraftVersionHistory";
 import { DraftingChatInterface } from "@/components/DraftingChatInterface";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 const DocumentDrafter = () => {
   const [documentContent, setDocumentContent] = useState("");
@@ -15,6 +18,7 @@ const DocumentDrafter = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
   const { toast } = useToast();
+  const { userRole } = useOrganization();
 
   // Check localStorage for selectedDraftId on mount
   useEffect(() => {
@@ -103,6 +107,50 @@ const DocumentDrafter = () => {
     });
   };
 
+  const handleTitleSaved = (newTitle: string) => {
+    setDocumentTitle(newTitle);
+  };
+
+  const createNewDocument = async () => {
+    if (!userRole?.organization.id) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const timestamp = new Date().toLocaleString();
+      const { data, error } = await supabase
+        .from('document_drafts')
+        .insert({
+          title: `Untitled Document - ${timestamp}`,
+          document_type: 'General',
+          content: { text: '', changes: [] },
+          user_id: user.id,
+          organization_id: userRole.organization.id,
+          current_version: 1,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "New document created",
+      });
+      setSelectedDraftId(data.id);
+      setCurrentDraftId(data.id);
+    } catch (error) {
+      console.error('Error creating document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create document",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background via-muted/30 to-background">
       {/* Header */}
@@ -110,10 +158,14 @@ const DocumentDrafter = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between bg-card rounded-2xl px-6 py-4 shadow-lg border border-white/10">
             <h1 className="text-2xl font-bold tracking-tight">Document Drafter</h1>
-            <DraftVersionHistory 
-              draftId={currentDraftId || ''} 
-              onRestoreVersion={handleRestoreVersion}
-            />
+            <Button 
+              onClick={createNewDocument}
+              variant="default"
+              size="sm"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              New Document
+            </Button>
           </div>
         </div>
       </div>
@@ -125,6 +177,7 @@ const DocumentDrafter = () => {
           <DraftsList
             onSelectDraft={handleSelectDraft}
             selectedDraftId={selectedDraftId}
+            onRestoreVersion={handleRestoreVersion}
           />
         </div>
 
@@ -138,6 +191,7 @@ const DocumentDrafter = () => {
               isGenerating={isGenerating}
               onExport={handleExport}
               draftId={currentDraftId}
+              onTitleSaved={handleTitleSaved}
             />
           </div>
           

@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatDistanceToNow } from "date-fns";
-import { History, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface DraftVersion {
@@ -22,10 +21,11 @@ interface DraftVersionHistoryProps {
 
 export const DraftVersionHistory = ({ draftId, onRestoreVersion }: DraftVersionHistoryProps) => {
   const [versions, setVersions] = useState<DraftVersion[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const loadVersions = async () => {
+    if (!draftId) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -45,79 +45,56 @@ export const DraftVersionHistory = ({ draftId, onRestoreVersion }: DraftVersionH
   };
 
   useEffect(() => {
-    if (isOpen && draftId) {
-      loadVersions();
-    }
-  }, [isOpen, draftId]);
+    loadVersions();
+  }, [draftId]);
 
   const handleRestore = (version: DraftVersion) => {
     onRestoreVersion(version.content);
-    setIsOpen(false);
     toast.success(`Restored to version ${version.version_number}`);
   };
 
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        disabled={!draftId}
-      >
-        <History className="w-4 h-4 mr-2" />
-        Version History
-      </Button>
-
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent className="w-96 bg-background/95 backdrop-blur-xl border-l shadow-2xl">
-          <SheetHeader>
-            <SheetTitle>Version History</SheetTitle>
-          </SheetHeader>
-
-          <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
-            {loading ? (
-              <div className="text-sm text-muted-foreground text-center py-8">
-                Loading versions...
+    <ScrollArea className="h-[calc(100vh-12rem)]">
+      {loading ? (
+        <div className="text-sm text-muted-foreground text-center py-8">
+          Loading versions...
+        </div>
+      ) : versions.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-8">
+          No version history yet
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {versions.map((version) => (
+            <div
+              key={version.id}
+              className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Version {version.version_number}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRestore(version)}
+                >
+                  Restore
+                </Button>
               </div>
-            ) : versions.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-8">
-                No version history yet
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {versions.map((version) => (
-                  <div
-                    key={version.id}
-                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Version {version.version_number}</span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRestore(version)}
-                      >
-                        Restore
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
-                    </p>
-                    {version.changes_summary && (
-                      <p className="text-sm text-muted-foreground">
-                        {version.changes_summary}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-    </>
+              <p className="text-xs text-muted-foreground mb-2">
+                {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
+              </p>
+              {version.changes_summary && (
+                <p className="text-sm text-muted-foreground">
+                  {version.changes_summary}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </ScrollArea>
   );
 };

@@ -10,10 +10,10 @@ import {
   Underline, 
   Strikethrough,
   AlignLeft,
-  History,
   Edit3,
   Save,
-  Palette
+  Palette,
+  RotateCcw
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -35,14 +35,6 @@ interface Change {
   position?: number;
 }
 
-interface Version {
-  id: string;
-  version_number: number;
-  content: string;
-  created_at: string;
-  changes_summary?: string;
-}
-
 interface DocumentEditorProps {
   content: string;
   title: string;
@@ -50,6 +42,7 @@ interface DocumentEditorProps {
   isGenerating?: boolean;
   onExport?: (format: 'txt' | 'docx' | 'pdf') => void;
   draftId?: string;
+  onTitleSaved?: (title: string) => void;
 }
 
 export const DocumentEditor = ({ 
@@ -58,15 +51,15 @@ export const DocumentEditor = ({
   changes = [],
   isGenerating = false,
   onExport,
-  draftId
+  draftId,
+  onTitleSaved
 }: DocumentEditorProps) => {
   const [editorContent, setEditorContent] = useState(content);
   const [originalContent, setOriginalContent] = useState(content);
   const [showEdits, setShowEdits] = useState(false);
-  const [versions, setVersions] = useState<Version[]>([]);
   const [currentVersion, setCurrentVersion] = useState(1);
-  const [showVersions, setShowVersions] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
+  const [previousTitle, setPreviousTitle] = useState(title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [textColor, setTextColor] = useState("#000000");
   const [isDragging, setIsDragging] = useState(false);
@@ -74,6 +67,15 @@ export const DocumentEditor = ({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastVersionContent, setLastVersionContent] = useState(content);
   const editorRef = useRef<RichTextEditorRef>(null);
+
+  useEffect(() => {
+    const loadCurrentVersion = async () => {
+      if (!draftId) return;
+      const version = await getCurrentVersion();
+      setCurrentVersion(version);
+    };
+    loadCurrentVersion();
+  }, [draftId]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -128,46 +130,26 @@ export const DocumentEditor = ({
     setOriginalContent(content);
     setLastVersionContent(content);
     setEditableTitle(title);
-    if (draftId) {
-      loadVersions();
-    }
+    setPreviousTitle(title);
   }, [content, draftId, title]);
 
-  const loadVersions = async () => {
-    if (!draftId) return;
+  const getCurrentVersion = async () => {
+    if (!draftId) return 1;
     
     const { data, error } = await supabase
-      .from('draft_versions')
-      .select('*')
-      .eq('draft_id', draftId)
-      .order('version_number', { ascending: false });
+      .from('document_drafts')
+      .select('current_version')
+      .eq('id', draftId)
+      .single();
 
     if (!error && data) {
-      const formattedVersions = data.map(v => {
-        let contentText = '';
-        if (typeof v.content === 'string') {
-          contentText = v.content;
-        } else if (v.content && typeof v.content === 'object' && 'text' in v.content) {
-          contentText = (v.content as any).text || '';
-        }
-        
-        return {
-          id: v.id,
-          version_number: v.version_number,
-          content: contentText,
-          created_at: v.created_at,
-          changes_summary: v.changes_summary
-        };
-      });
-      setVersions(formattedVersions as any);
-      if (formattedVersions.length > 0) {
-        setCurrentVersion(formattedVersions[0].version_number);
-      }
+      return data.current_version || 1;
     }
+    return 1;
   };
 
   const saveDraft = async (showToast = true) => {
-    if (!draftId || !editorContent) return;
+    if (!draftId) return;
 
     setIsSaving(true);
     try {
@@ -182,7 +164,6 @@ export const DocumentEditor = ({
 
       if (!error) {
         if (showToast) toast.success('Draft saved');
-        setOriginalContent(editorContent);
         setLastSaved(new Date());
       }
     } catch (error) {
@@ -193,62 +174,79 @@ export const DocumentEditor = ({
     }
   };
 
-  // Auto-save with debouncing (30 seconds for smarter versioning)
+  // Auto-save with debouncing (30 seconds, no version creation)
   useEffect(() => {
-    if (!draftId || !editorContent) return;
+    if (!draftId) return;
 
     const timer = setTimeout(async () => {
-      // Always save the draft
       await saveDraft(false);
-      
-      // Only create version if there are meaningful changes (>100 chars difference or 10% change)
-      const charDiff = Math.abs(editorContent.length - lastVersionContent.length);
-      const changePercent = (charDiff / Math.max(lastVersionContent.length, 1)) * 100;
-      
-      if (charDiff > 100 || changePercent > 10) {
-        await saveVersionSnapshot();
-      }
     }, 30000); // 30 seconds
 
     return () => clearTimeout(timer);
-  }, [editorContent, draftId]);
+  }, [editorContent, editableTitle, draftId]);
 
-  const calculateChangesSummary = (oldContent: string, newContent: string): string => {
+  const calculateChangesSummary = (oldContent: string, newContent: string, oldTitle: string, newTitle: string): string => {
+    const parts = [];
+    
+    if (oldTitle !== newTitle) {
+      parts.push(`Renamed to "${newTitle}"`);
+    }
+    
     const oldLength = oldContent.length;
     const newLength = newContent.length;
     const diff = newLength - oldLength;
     
     if (diff > 0) {
-      return `Added ~${diff} characters`;
+      parts.push(`Added ~${diff} characters`);
     } else if (diff < 0) {
-      return `Removed ~${Math.abs(diff)} characters`;
-    } else {
-      return 'Content modified';
+      parts.push(`Removed ~${Math.abs(diff)} characters`);
+    } else if (oldContent !== newContent) {
+      parts.push('Content modified');
     }
+    
+    return parts.length > 0 ? parts.join('; ') : 'Manual save';
   };
 
-  const saveVersionSnapshot = async () => {
-    if (!draftId || !editorContent) return;
+  const handleManualSave = async () => {
+    if (!draftId) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setIsSaving(true);
+    try {
+      // Save draft with current content and title
+      await saveDraft(false);
+      
+      // Get current version number from DB
+      const nextVersion = await getCurrentVersion() + 1;
+      const changesSummary = calculateChangesSummary(lastVersionContent, editorContent, previousTitle, editableTitle);
+      
+      // Create version snapshot
+      const { error: versionError } = await supabase
+        .from('draft_versions')
+        .insert({
+          draft_id: draftId,
+          version_number: nextVersion,
+          content: { text: editorContent, changes: [] },
+          changes_summary: changesSummary
+        });
 
-    const nextVersion = currentVersion + 1;
-    const changesSummary = calculateChangesSummary(lastVersionContent, editorContent);
-    
-    const { error } = await supabase
-      .from('draft_versions')
-      .insert({
-        draft_id: draftId,
-        version_number: nextVersion,
-        content: { text: editorContent, changes: [] },
-        changes_summary: changesSummary
-      });
-
-    if (!error) {
-      setCurrentVersion(nextVersion);
-      setLastVersionContent(editorContent);
-      loadVersions();
+      if (!versionError) {
+        // Update current_version in document_drafts
+        await supabase
+          .from('document_drafts')
+          .update({ current_version: nextVersion })
+          .eq('id', draftId);
+        
+        setCurrentVersion(nextVersion);
+        setLastVersionContent(editorContent);
+        setOriginalContent(editorContent);
+        setPreviousTitle(editableTitle);
+        toast.success(`Saved as version ${nextVersion}`);
+      }
+    } catch (error) {
+      console.error('Save version error:', error);
+      toast.error('Failed to save version');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -262,8 +260,10 @@ export const DocumentEditor = ({
         .eq('id', draftId);
 
       if (!error) {
-        toast.success('Title saved');
         setIsEditingTitle(false);
+        if (onTitleSaved) {
+          onTitleSaved(editableTitle);
+        }
       }
     } catch (error) {
       console.error('Save title error:', error);
@@ -271,14 +271,17 @@ export const DocumentEditor = ({
     }
   };
 
-  const loadVersion = async (versionId: string) => {
-    const version = versions.find(v => v.id === versionId);
-    if (version) {
-      setEditorContent(version.content);
-      setCurrentVersion(version.version_number);
-      toast.success(`Loaded version ${version.version_number}`);
-      setShowVersions(false);
+  const handleTitleBlur = () => {
+    if (editableTitle !== title) {
+      handleSaveTitle();
+    } else {
+      setIsEditingTitle(false);
     }
+  };
+
+  const handleRevert = () => {
+    setEditorContent(originalContent);
+    toast.success('Reverted to last saved version');
   };
 
   const handleExport = async (format: 'txt' | 'docx' | 'pdf') => {
@@ -355,7 +358,7 @@ export const DocumentEditor = ({
                 onChange={(e) => setEditableTitle(e.target.value)}
                 className="text-lg font-semibold tracking-tight bg-transparent border-b border-primary focus:outline-none"
                 autoFocus
-                onBlur={() => setIsEditingTitle(false)}
+                onBlur={handleTitleBlur}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSaveTitle();
@@ -387,43 +390,20 @@ export const DocumentEditor = ({
               Saved {formatDistanceToNow(lastSaved, { addSuffix: true })}
             </span>
           )}
-          <DropdownMenu open={showVersions} onOpenChange={setShowVersions}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 text-xs gap-1.5" disabled={!draftId}>
-                <History className="h-4 w-4" />
-                <span className="hidden sm:inline">Version History</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              {versions.length > 0 ? (
-                versions.map((version) => (
-                  <DropdownMenuItem 
-                    key={version.id}
-                    onClick={() => loadVersion(version.id)}
-                    className="flex flex-col items-start py-3"
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="font-medium">Version {version.version_number}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                    {version.changes_summary && (
-                      <span className="text-xs text-muted-foreground italic">
-                        {version.changes_summary}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>No versions saved yet</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-9 text-xs gap-1.5"
+            onClick={handleManualSave}
+            disabled={!draftId || isSaving}
+          >
+            <Save className="h-4 w-4" />
+            <span className="hidden sm:inline">Save Version</span>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
-                variant="default" 
+                variant="outline" 
                 size="sm" 
                 className="h-9 text-xs gap-1.5"
                 disabled={!content || isGenerating}
@@ -550,25 +530,49 @@ export const DocumentEditor = ({
               </div>
             ) : content ? (
               <div className="bg-background rounded-xl shadow-lg border p-10 sm:p-16 min-h-[calc(100vh-16rem)]">
-                <div className={showEdits ? 'relative' : ''}>
-                  <RichTextEditor 
-                    ref={editorRef}
-                    content={showEdits ? editorContent : content}
-                    onChange={setEditorContent}
-                    editable={true}
-                  />
-                  {showEdits && editorContent !== originalContent && (
-                    <div className="mt-6 p-4 bg-accent/50 rounded-lg border border-accent">
-                      <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
-                        <Edit3 className="h-4 w-4" />
-                        Changes Made
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Document has been modified. Save as a new version to preserve changes.
-                      </p>
+                {/* Changes Banner */}
+                {showEdits && editorContent !== originalContent && (
+                  <div className="mb-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="h-4 w-4 text-yellow-600" />
+                      <div>
+                        <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                          Changes since last save
+                        </h3>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                          You have unsaved changes in this document
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleRevert}
+                        className="h-8 text-xs"
+                      >
+                        Revert
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={handleManualSave}
+                        disabled={isSaving}
+                        className="h-8 text-xs"
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                <RichTextEditor 
+                  ref={editorRef}
+                  content={editorContent}
+                  onChange={setEditorContent}
+                  editable={true}
+                />
               </div>
             ) : (
               <div 

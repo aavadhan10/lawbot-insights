@@ -4,9 +4,11 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Trash2, File, PlusCircle } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { FileText, Trash2, File, PlusCircle, History } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { DraftVersionHistory } from "./DraftVersionHistory";
 
 interface Draft {
   id: string;
@@ -21,9 +23,10 @@ interface Draft {
 interface DraftsListProps {
   onSelectDraft: (draftId: string, conversationId?: string) => void;
   selectedDraftId?: string;
+  onRestoreVersion?: (content: any) => void;
 }
 
-export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) => {
+export const DraftsList = ({ onSelectDraft, selectedDraftId, onRestoreVersion }: DraftsListProps) => {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const { userRole } = useOrganization();
@@ -468,14 +471,44 @@ Date: _______________            Date: _______________`
                           </p>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive"
-                        onClick={(e) => deleteDraft(draft.id, e)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {selectedDraftId === draft.id && onRestoreVersion && (
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <History className="h-3 w-3" />
+                              </Button>
+                            </SheetTrigger>
+                            <SheetContent className="w-96 bg-background/95 backdrop-blur-xl border-l shadow-2xl">
+                              <SheetHeader>
+                                <SheetTitle>Version History</SheetTitle>
+                                <SheetDescription>
+                                  View and restore previous versions of this document
+                                </SheetDescription>
+                              </SheetHeader>
+                              <div className="mt-6">
+                                <DraftVersionHistory 
+                                  draftId={draft.id} 
+                                  onRestoreVersion={onRestoreVersion}
+                                />
+                              </div>
+                            </SheetContent>
+                          </Sheet>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={(e) => deleteDraft(draft.id, e)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))
