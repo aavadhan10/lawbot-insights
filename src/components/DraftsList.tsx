@@ -462,7 +462,7 @@ Date: _______________            Date: _______________`
                       <div className="flex items-start gap-2 flex-1 min-w-0">
                         <FileText className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{draft.title}</p>
+                          <p className="text-sm font-medium break-words">{draft.title}</p>
                           <p className="text-xs text-muted-foreground">
                             {draft.document_type} • v{draft.current_version}
                           </p>
@@ -471,36 +471,32 @@ Date: _______________            Date: _______________`
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {selectedDraftId === draft.id && onRestoreVersion && (
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 flex-shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                                title="View version history"
-                              >
-                                <History className="h-3 w-3" />
-                              </Button>
-                            </SheetTrigger>
-                            <SheetContent className="w-96 bg-background/95 backdrop-blur-xl border-l shadow-2xl">
-                              <SheetHeader>
-                                <SheetTitle>Version History</SheetTitle>
-                                <SheetDescription>
-                                  View and restore previous versions of this document
-                                </SheetDescription>
-                              </SheetHeader>
-                              <div className="mt-6">
-                                <DraftVersionHistory 
-                                  draftId={draft.id} 
-                                  onRestoreVersion={onRestoreVersion}
-                                />
-                              </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Sheet>
+                          <SheetTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => e.stopPropagation()}
+                              title="View version history"
+                            >
+                              <History className="h-4 w-4" />
+                            </Button>
+                          </SheetTrigger>
+                          <SheetContent className="w-96 bg-background border-l shadow-2xl">
+                            <SheetHeader>
+                              <SheetTitle>Version History</SheetTitle>
+                              <SheetDescription>
+                                View and restore previous versions of this document
+                              </SheetDescription>
+                            </SheetHeader>
+                              <DraftVersionHistory 
+                                draftId={draft.id} 
+                                onRestoreVersion={onRestoreVersion}
+                              />
                             </SheetContent>
                           </Sheet>
-                        )}
                         <Button
                           variant="ghost"
                           size="icon"

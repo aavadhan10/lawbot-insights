@@ -348,12 +348,12 @@ export const DocumentEditor = ({
     <div className="h-full flex flex-col bg-background">
       {/* Unified Header with Title and Controls */}
       <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-2 flex-1">
           <input
             type="text"
             value={editableTitle}
             onChange={(e) => setEditableTitle(e.target.value)}
-            className="text-lg font-semibold tracking-tight bg-transparent border-b-2 border-transparent hover:border-muted focus:border-primary focus:outline-none transition-colors px-2 py-1 rounded"
+            className="text-lg font-semibold tracking-tight bg-transparent border-b-2 border-transparent hover:border-muted focus:border-primary focus:outline-none transition-colors px-2 py-1 rounded max-w-md"
             placeholder="Document title..."
             onBlur={handleTitleBlur}
             onKeyDown={(e) => {
@@ -364,9 +364,9 @@ export const DocumentEditor = ({
             }}
           />
           {editableTitle !== title && (
-            <Button variant="ghost" size="sm" onClick={handleSaveTitle} className="h-8">
+            <Button variant="outline" size="sm" onClick={handleSaveTitle} className="h-8 flex-shrink-0">
               <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save Title
+              Save
             </Button>
           )}
         </div>
