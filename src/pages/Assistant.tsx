@@ -157,54 +157,59 @@ export default function Assistant() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-background via-muted/30 to-background">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0 bg-card">
-        <h1 className="text-3xl font-semibold">Briefly AI Assistant</h1>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
-            <MessageSquare className="w-4 h-4 mr-2" />
-            History
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setFeedbackModalOpen(true)}>
-            <Sparkles className="w-4 h-4 mr-2" />
-            Feedback
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => { 
-              setConversationId(null); 
-              setInitialPrompt(""); 
-              setSelectedDocuments([]);
-              localStorage.removeItem('lastConversationId');
-              scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="font-medium"
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            New thread
-          </Button>
+      {/* Header & Quick Actions Card */}
+      <div className="px-6 pt-6 flex-shrink-0">
+        <div className="max-w-5xl mx-auto glass-card rounded-2xl shadow-xl border p-6 space-y-4">
+          {/* Header Section */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-semibold">Briefly AI Assistant</h1>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                History
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setFeedbackModalOpen(true)}>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Feedback
+              </Button>
+              <div className="h-5 w-px bg-border" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => { 
+                  setConversationId(null); 
+                  setInitialPrompt(""); 
+                  setSelectedDocuments([]);
+                  localStorage.removeItem('lastConversationId');
+                  scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="font-medium"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                New thread
+              </Button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t" />
+
+          {/* Quick Actions Section */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setPromptLibraryOpen(true)}>
+              <List className="w-4 h-4 mr-2" />
+              Browse Prompts
+            </Button>
+            <Button variant="outline" onClick={() => setDocumentSelectorOpen(true)}>
+              <FolderOpen className="w-4 h-4 mr-2" />
+              View Repository
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Quick Actions */}
-        <div className="px-6 py-4 border-b flex-shrink-0 bg-card">
-          <div className="max-w-[1600px] mx-auto">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="outline" onClick={() => setPromptLibraryOpen(true)}>
-                <List className="w-4 h-4 mr-2" />
-                Browse Prompts
-              </Button>
-              <Button variant="outline" onClick={() => setDocumentSelectorOpen(true)}>
-                <FolderOpen className="w-4 h-4 mr-2" />
-                View Repository
-              </Button>
-            </div>
-          </div>
-        </div>
 
         {/* Full Width Chat Layout */}
         <div className="flex-1 overflow-hidden">
