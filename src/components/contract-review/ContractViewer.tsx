@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, FileText, Check, X } from "lucide-react";
+import { Loader2, FileText, Check, X, Save, Edit3, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface Finding {
   id: string;
@@ -25,10 +26,12 @@ interface ContractViewerProps {
 
 export default function ContractViewer({ open, onOpenChange, documentId, findings }: ContractViewerProps) {
   const [contractText, setContractText] = useState<string>("");
+  const [editedText, setEditedText] = useState<string>("");
+  const [editMode, setEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [findingStatuses, setFindingStatuses] = useState<Record<string, string>>({});
   const [activeCard, setActiveCard] = useState<string | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (open && documentId) {
@@ -55,7 +58,9 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
         .single();
 
       if (error) throw error;
-      setContractText(data.content_text || "");
+      const text = data.content_text || "";
+      setContractText(text);
+      setEditedText(text);
     } catch (error) {
       console.error('Error loading contract:', error);
     } finally {
@@ -111,17 +116,10 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
 
       setFindingStatuses(prev => ({ ...prev, [findingId]: newStatus }));
       
-      toast({
-        title: newStatus === 'applied' ? "Change accepted" : "Change rejected",
-        description: `The suggestion has been ${newStatus}.`,
-      });
+      toast.success(newStatus === 'applied' ? "Change accepted" : "Change rejected");
     } catch (error) {
       console.error('Error updating finding status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update suggestion status.",
-        variant: "destructive",
-      });
+      toast.error("Failed to update suggestion status");
     }
   };
 
@@ -134,12 +132,33 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
     }
   };
 
+  const handleSaveContract = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ content_text: editedText })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      setContractText(editedText);
+      toast.success("Contract saved successfully");
+    } catch (error) {
+      console.error('Error saving contract:', error);
+      toast.error("Failed to save contract");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasUnsavedChanges = editedText !== contractText;
   const pendingCount = Object.values(findingStatuses).filter(s => s === 'pending').length;
   const appliedCount = Object.values(findingStatuses).filter(s => s === 'applied').length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-screen h-screen m-0 p-0 gap-0">
+      <DialogContent className="max-w-[90vw] max-h-[85vh] m-4 p-0 gap-0">
         <div className="bg-background h-full flex flex-col">
           <div className="px-6 py-4 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -153,14 +172,44 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
                 </p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex border rounded-lg">
+                <Button
+                  variant={!editMode ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setEditMode(false)}
+                  className="rounded-r-none"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Review Mode
+                </Button>
+                <Button
+                  variant={editMode ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setEditMode(true)}
+                  className="rounded-l-none"
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Mode
+                </Button>
+              </div>
+              
+              {editMode && (
+                <Button
+                  onClick={handleSaveContract}
+                  disabled={!hasUnsavedChanges || isSaving}
+                  size="sm"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save Changes
+                </Button>
+              )}
+            </div>
           </div>
           
           {isLoading ? (
@@ -172,15 +221,27 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
               {/* Document Area */}
               <ScrollArea className="flex-[2] border-r">
                 <div className="p-12 bg-white min-h-full">
-                  <div 
-                    className="text-foreground text-[15px] leading-[1.8] whitespace-pre-wrap"
-                    style={{ 
-                      fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
-                      textAlign: 'justify',
-                      hyphens: 'auto'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
-                  />
+                  {editMode ? (
+                    <Textarea
+                      value={editedText}
+                      onChange={(e) => setEditedText(e.target.value)}
+                      className="min-h-[calc(85vh-12rem)] w-full font-serif text-[15px] leading-[1.8] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      style={{ 
+                        fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                        textAlign: 'justify'
+                      }}
+                    />
+                  ) : (
+                    <div 
+                      className="text-foreground text-[15px] leading-[1.8] whitespace-pre-wrap"
+                      style={{ 
+                        fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                        textAlign: 'justify',
+                        hyphens: 'auto'
+                      }}
+                      dangerouslySetInnerHTML={{ __html: highlightContract(contractText) }}
+                    />
+                  )}
                 </div>
               </ScrollArea>
 
