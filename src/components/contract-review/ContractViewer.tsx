@@ -266,6 +266,25 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
             </div>
             
             <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSaveContract}
+                disabled={!editMode || !hasUnsavedChanges || isSaving}
+                size="sm"
+                variant={hasUnsavedChanges ? "default" : "outline"}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {hasUnsavedChanges ? "Save Changes" : "No Changes"}
+                  </>
+                )}
+              </Button>
+              
               <div className="flex border rounded-lg">
                 <Button
                   variant={!editMode ? "secondary" : "ghost"}
@@ -274,7 +293,7 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
                   className="rounded-r-none"
                 >
                   <Eye className="w-4 h-4 mr-2" />
-                  Review Mode
+                  Review
                 </Button>
                 <Button
                   variant={editMode ? "secondary" : "ghost"}
@@ -283,24 +302,9 @@ export default function ContractViewer({ open, onOpenChange, documentId, finding
                   className="rounded-l-none"
                 >
                   <Edit3 className="w-4 h-4 mr-2" />
-                  Edit Mode
+                  Edit
                 </Button>
               </div>
-              
-              {editMode && (
-                <Button
-                  onClick={handleSaveContract}
-                  disabled={!hasUnsavedChanges || isSaving}
-                  size="sm"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Save Changes
-                </Button>
-              )}
             </div>
           </div>
           
