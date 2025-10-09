@@ -106,12 +106,16 @@ const DocumentDrafter = () => {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background via-muted/30 to-background">
-      <div className="border-b px-6 py-3 flex-shrink-0 bg-card flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Document Drafter</h1>
-        <DraftVersionHistory 
-          draftId={currentDraftId || ''} 
-          onRestoreVersion={handleRestoreVersion}
-        />
+      <div className="px-6 pt-6 flex-shrink-0">
+        <div className="max-w-7xl mx-auto glass-card rounded-2xl shadow-xl border p-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold">Document Drafter</h1>
+            <DraftVersionHistory 
+              draftId={currentDraftId || ''} 
+              onRestoreVersion={handleRestoreVersion}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden">

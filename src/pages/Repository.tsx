@@ -221,31 +221,35 @@ export default function Repository() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h1 className="text-2xl font-semibold">Repository</h1>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-64"
-            />
+    <div className="flex flex-col h-full bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="px-6 pt-6 flex-shrink-0">
+        <div className="max-w-7xl mx-auto glass-card rounded-2xl shadow-xl border p-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Repository</h1>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".pdf,.docx,.txt"
+                multiple
+                className="hidden"
+              />
+              <Button onClick={() => fileInputRef.current?.click()}>
+                <Plus className="w-4 h-4 mr-2" />
+                Upload Documents
+              </Button>
+            </div>
           </div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".pdf,.docx,.txt"
-            multiple
-            className="hidden"
-          />
-          <Button onClick={() => fileInputRef.current?.click()}>
-            <Plus className="w-4 h-4 mr-2" />
-            Upload Documents
-          </Button>
         </div>
       </div>
 

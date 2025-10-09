@@ -231,38 +231,44 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-background via-muted/30 to-background">
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
-        <h1 className="text-2xl font-semibold">History</h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={`Search ${activeTab}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-64"
-          />
-        </div>
-      </div>
+      <div className="px-6 pt-6 flex-shrink-0">
+        <div className="max-w-7xl mx-auto glass-card rounded-2xl shadow-xl border p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">History</h1>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Search ${activeTab}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
+          </div>
 
-      <div className="flex gap-2 px-6 py-3 border-b bg-card">
-        <Button
-          variant={activeTab === 'conversations' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('conversations')}
-        >
-          Assistant Chats
-        </Button>
-        <Button
-          variant={activeTab === 'drafts' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('drafts')}
-        >
-          Document Drafts
-        </Button>
-        <Button
-          variant={activeTab === 'contracts' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('contracts')}
-        >
-          Contracts
-        </Button>
+          <div className="border-t" />
+
+          <div className="flex gap-2">
+            <Button
+              variant={activeTab === 'conversations' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('conversations')}
+            >
+              Assistant Chats
+            </Button>
+            <Button
+              variant={activeTab === 'drafts' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('drafts')}
+            >
+              Document Drafts
+            </Button>
+            <Button
+              variant={activeTab === 'contracts' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('contracts')}
+            >
+              Contracts
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-6">
