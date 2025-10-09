@@ -438,8 +438,8 @@ export const DocumentEditor = ({
     <TooltipProvider>
       <div className="h-full flex flex-col bg-background">
         {/* Unified Header with Title and Controls */}
-        <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="border-b px-6 py-3 flex items-start justify-between flex-shrink-0 bg-background flex-wrap gap-y-2">
+          <div className="flex items-start gap-3 flex-1 min-w-0 basis-full md:basis-auto">
             <FileText className="h-5 w-5 text-primary flex-shrink-0" />
             {isEditingTitle ? (
               <>
@@ -448,7 +448,7 @@ export const DocumentEditor = ({
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
                   onKeyDown={handleTitleKeyDown}
-                  className="text-lg font-semibold flex-1 min-w-0 h-9"
+                  className="text-lg font-semibold flex-1 min-w-0 h-9 w-full md:w-auto"
                   placeholder="Untitled Document"
                   autoFocus
                 />
@@ -470,9 +470,9 @@ export const DocumentEditor = ({
               </>
             ) : (
             <>
-                <span className="text-lg font-semibold flex-1 min-w-0">
+                <div className="text-lg font-semibold leading-snug break-words whitespace-normal mr-2">
                   {editableTitle}
-                </span>
+                </div>
                 <Button 
                   onClick={handleStartEditTitle}
                   variant="ghost"
