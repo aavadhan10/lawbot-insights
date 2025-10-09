@@ -9,15 +9,11 @@ import {
   Italic, 
   Underline, 
   Strikethrough,
-  List, 
-  ListOrdered,
   AlignLeft,
-  Link2,
-  Scissors,
-  Copy,
   History,
-  MoreHorizontal,
-  Edit3
+  Edit3,
+  Save,
+  Palette
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -68,15 +64,19 @@ export const DocumentEditor = ({
   const [versions, setVersions] = useState<Version[]>([]);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [showVersions, setShowVersions] = useState(false);
+  const [editableTitle, setEditableTitle] = useState(title);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [textColor, setTextColor] = useState("#000000");
   const editorRef = useRef<RichTextEditorRef>(null);
 
   useEffect(() => {
     setEditorContent(content);
     setOriginalContent(content);
+    setEditableTitle(title);
     if (draftId) {
       loadVersions();
     }
-  }, [content, draftId]);
+  }, [content, draftId, title]);
 
   const loadVersions = async () => {
     if (!draftId) return;
@@ -92,6 +92,29 @@ export const DocumentEditor = ({
       if (data.length > 0) {
         setCurrentVersion(data[0].version_number);
       }
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!draftId || !editorContent) return;
+
+    try {
+      const { error } = await supabase
+        .from('document_drafts')
+        .update({
+          content: { text: editorContent, changes: [] },
+          title: editableTitle,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draftId);
+
+      if (!error) {
+        toast.success('Draft saved');
+        setOriginalContent(editorContent);
+      }
+    } catch (error) {
+      console.error('Save draft error:', error);
+      toast.error('Failed to save draft');
     }
   };
 
@@ -117,6 +140,25 @@ export const DocumentEditor = ({
       setOriginalContent(editorContent);
       toast.success('New version saved');
       loadVersions();
+    }
+  };
+
+  const handleSaveTitle = async () => {
+    if (!draftId || !editableTitle) return;
+
+    try {
+      const { error } = await supabase
+        .from('document_drafts')
+        .update({ title: editableTitle })
+        .eq('id', draftId);
+
+      if (!error) {
+        toast.success('Title saved');
+        setIsEditingTitle(false);
+      }
+    } catch (error) {
+      console.error('Save title error:', error);
+      toast.error('Failed to save title');
     }
   };
 
@@ -154,7 +196,7 @@ export const DocumentEditor = ({
     }
   };
 
-  const applyFormatting = (command: string) => {
+  const applyFormatting = (command: string, value?: string) => {
     const editor = editorRef.current?.editor;
     if (!editor) return;
 
@@ -171,12 +213,6 @@ export const DocumentEditor = ({
       case 'strike':
         editor.chain().focus().toggleStrike().run();
         break;
-      case 'bulletList':
-        editor.chain().focus().toggleBulletList().run();
-        break;
-      case 'orderedList':
-        editor.chain().focus().toggleOrderedList().run();
-        break;
       case 'heading1':
         editor.chain().focus().toggleHeading({ level: 1 }).run();
         break;
@@ -189,6 +225,11 @@ export const DocumentEditor = ({
       case 'paragraph':
         editor.chain().focus().setParagraph().run();
         break;
+      case 'color':
+        if (value) {
+          editor.chain().focus().setColor(value).run();
+        }
+        break;
     }
   };
 
@@ -196,7 +237,38 @@ export const DocumentEditor = ({
     <div className="h-full flex flex-col bg-background">
       {/* Unified Header with Title and Controls */}
       <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-        <h1 className="text-lg font-semibold tracking-tight">{title || "Draft"}</h1>
+        <div className="flex items-center gap-2 flex-1">
+          {isEditingTitle ? (
+            <>
+              <input
+                type="text"
+                value={editableTitle}
+                onChange={(e) => setEditableTitle(e.target.value)}
+                className="text-lg font-semibold tracking-tight bg-transparent border-b border-primary focus:outline-none"
+                autoFocus
+                onBlur={() => setIsEditingTitle(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveTitle();
+                  } else if (e.key === 'Escape') {
+                    setIsEditingTitle(false);
+                    setEditableTitle(title);
+                  }
+                }}
+              />
+              <Button variant="ghost" size="sm" onClick={handleSaveTitle}>
+                <Save className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <h1 
+              className="text-lg font-semibold tracking-tight cursor-pointer hover:text-primary"
+              onClick={() => setIsEditingTitle(true)}
+            >
+              {editableTitle || "Draft"}
+            </h1>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <DropdownMenu open={showVersions} onOpenChange={setShowVersions}>
             <DropdownMenuTrigger asChild>
@@ -228,11 +300,21 @@ export const DocumentEditor = ({
             variant="outline" 
             size="sm" 
             className="h-9 text-xs"
+            onClick={saveDraft}
+            disabled={!draftId || isGenerating}
+          >
+            <Save className="h-3.5 w-3.5 mr-1" />
+            <span className="hidden sm:inline">Save Draft</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-9 text-xs"
             onClick={saveVersion}
             disabled={!draftId || isGenerating || editorContent === originalContent}
           >
+            <History className="h-3.5 w-3.5 mr-1" />
             <span className="hidden sm:inline">Save Version</span>
-            <span className="sm:hidden">Save</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -327,24 +409,16 @@ export const DocumentEditor = ({
         <div className="h-5 w-px bg-border mx-1" />
 
         <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 hover:bg-accent" 
-            onClick={() => applyFormatting('bulletList')}
-            title="Bullet List"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 hover:bg-accent" 
-            onClick={() => applyFormatting('orderedList')}
-            title="Numbered List"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </Button>
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => {
+              setTextColor(e.target.value);
+              applyFormatting('color', e.target.value);
+            }}
+            className="h-8 w-8 cursor-pointer rounded border border-border"
+            title="Text Color"
+          />
         </div>
 
         <div className="flex-1" />

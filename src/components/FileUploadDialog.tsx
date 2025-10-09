@@ -103,7 +103,7 @@ export const FileUploadDialog = ({ open, onOpenChange, onFileUploaded }: FileUpl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="bg-background">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
         </DialogHeader>

@@ -146,12 +146,51 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) 
         
         <TabsContent value="templates" className="flex-1 mt-0 overflow-hidden">
           <ScrollArea className="h-full">
-            <div className="p-4">
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <File className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                <p className="text-sm font-medium text-foreground mb-1">Templates Coming Soon</p>
-                <p className="text-xs text-muted-foreground">Save and reuse your favorite document templates</p>
-              </div>
+            <div className="p-4 space-y-2">
+              {[
+                {
+                  id: 't1',
+                  title: 'Legal Agreement',
+                  description: 'Standard legal agreement template',
+                  type: 'Legal'
+                },
+                {
+                  id: 't2',
+                  title: 'Business Contract',
+                  description: 'General business contract template',
+                  type: 'Business'
+                },
+                {
+                  id: 't3',
+                  title: 'Non-Disclosure Agreement',
+                  description: 'Standard NDA template',
+                  type: 'Legal'
+                },
+                {
+                  id: 't4',
+                  title: 'Service Agreement',
+                  description: 'Service provider agreement template',
+                  type: 'Business'
+                },
+              ].map((template) => (
+                <div
+                  key={template.id}
+                  className="p-3 rounded-lg cursor-pointer transition-all hover:bg-accent border-2 border-transparent hover:border-primary/50"
+                  onClick={() => {
+                    toast.success(`Loading ${template.title} template...`);
+                    // Template content will be loaded via chat interface
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{template.title}</p>
+                      <p className="text-xs text-muted-foreground">{template.type}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </TabsContent>

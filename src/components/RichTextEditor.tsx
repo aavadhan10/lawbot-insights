@@ -7,6 +7,8 @@ import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
 import Strike from '@tiptap/extension-strike';
+import Color from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { useEffect, useImperativeHandle, forwardRef } from 'react';
 import { formatDocumentContent } from '@/utils/formatDocument';
 
@@ -52,6 +54,8 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
         }),
         Underline,
         Strike,
+        TextStyle,
+        Color,
         TextAlign.configure({
           types: ['heading', 'paragraph'],
         }),

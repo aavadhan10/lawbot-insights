@@ -106,7 +106,7 @@ const DocumentDrafter = () => {
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background via-muted/30 to-background">
       {/* Header */}
-      <div className="px-6 py-8 flex-shrink-0 border-b bg-background/50 backdrop-blur-sm">
+      <div className="px-6 py-8 flex-shrink-0 border-b bg-card border-white/10 shadow-sm">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold tracking-tight">Document Drafter</h1>
