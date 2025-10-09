@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -9,6 +9,7 @@ import {
   FileCheck,
   Settings,
   HelpCircle,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,7 +41,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
-  const [userName, setUserName] = useState<string>("Briefly");
+  const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>("");
   const [isLoadingName, setIsLoadingName] = useState(true);
 
   useEffect(() => {
@@ -73,6 +75,18 @@ export function AppSidebar() {
     fetchUserName();
   }, []);
 
+  useEffect(() => {
+    const onProfileUpdated = (e: any) => {
+      const name: string | undefined = e?.detail?.fullName;
+      if (name) {
+        const first = name.split(" ")[0];
+        setUserName(first);
+      }
+    };
+    window.addEventListener("profile-updated", onProfileUpdated);
+    return () => window.removeEventListener("profile-updated", onProfileUpdated);
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -82,7 +96,7 @@ export function AppSidebar() {
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold font-heading">
-                {userName[0]?.toUpperCase() || 'B'}
+                {userName[0]?.toUpperCase() || 'U'}
               </span>
             </div>
             <span className="text-base font-heading font-semibold">
@@ -143,6 +157,15 @@ export function AppSidebar() {
                 <HelpCircle className="w-4 h-4" />
                 {!collapsed && <span>Help</span>}
               </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={async () => {
+              await supabase.auth.signOut();
+              navigate("/");
+            }}>
+              <LogOut className="w-4 h-4" />
+              {!collapsed && <span>Sign Out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

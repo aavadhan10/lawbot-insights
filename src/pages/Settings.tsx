@@ -69,6 +69,8 @@ export default function Settings() {
       if (error) throw error;
 
       toast.success("Profile updated successfully");
+      // Notify app to refresh displayed name
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { fullName } }));
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile");
