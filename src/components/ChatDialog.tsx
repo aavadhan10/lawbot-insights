@@ -8,7 +8,6 @@ interface ChatDialogProps {
   onGeneratingChange: (isGenerating: boolean) => void;
   selectedDraftId?: string;
   selectedConversationId?: string;
-  onDocumentNameChange?: (name: string) => void;
 }
 
 export const ChatDialog = ({
@@ -17,8 +16,7 @@ export const ChatDialog = ({
   onDocumentGenerated,
   onGeneratingChange,
   selectedDraftId,
-  selectedConversationId,
-  onDocumentNameChange
+  selectedConversationId
 }: ChatDialogProps) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -32,7 +30,6 @@ export const ChatDialog = ({
             onGeneratingChange={onGeneratingChange}
             selectedDraftId={selectedDraftId}
             selectedConversationId={selectedConversationId}
-            onDocumentNameChange={onDocumentNameChange}
           />
         </div>
       </SheetContent>

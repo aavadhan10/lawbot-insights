@@ -24,21 +24,18 @@ interface DraftingChatInterfaceProps {
   onGeneratingChange: (isGenerating: boolean) => void;
   selectedDraftId?: string;
   selectedConversationId?: string;
-  onDocumentNameChange?: (name: string) => void;
 }
 
 export const DraftingChatInterface = ({ 
   onDocumentGenerated,
   onGeneratingChange,
   selectedDraftId,
-  selectedConversationId,
-  onDocumentNameChange 
+  selectedConversationId
 }: DraftingChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentDraftTitle, setCurrentDraftTitle] = useState("");
-  const [documentName, setDocumentName] = useState("");
   const [steps, setSteps] = useState<Step[]>([]);
   const [showSteps, setShowSteps] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; content: string } | null>(null);
@@ -75,23 +72,6 @@ export const DraftingChatInterface = ({
     }
   }, [currentConversationId]);
 
-  // Auto-save when document name changes and content exists
-  useEffect(() => {
-    if (documentName && messages.length > 0) {
-      // Debounce save
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      saveTimeoutRef.current = setTimeout(() => {
-        autoSaveDraft();
-      }, 2000); // Save 2 seconds after user stops typing
-    }
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [documentName]);
 
   const createNewConversation = async (initialTitle?: string) => {
     if (!user || !userRole?.organization.id) return;
@@ -152,7 +132,6 @@ export const DraftingChatInterface = ({
 
       if (data) {
         setCurrentDraftId(data.id);
-        setDocumentName(data.title);
         setCurrentDraftTitle(data.title);
         
         // Load the conversation if it exists
@@ -167,7 +146,6 @@ export const DraftingChatInterface = ({
           : contentData?.text || '';
         
         onDocumentGenerated(content, contentData?.changes || [], data.id);
-        onDocumentNameChange?.(data.title);
       }
     } catch (error) {
       console.error('Error loading draft:', error);
@@ -180,7 +158,7 @@ export const DraftingChatInterface = ({
   };
 
   const autoSaveDraft = async () => {
-    if (!documentName || !user || !userRole?.organization.id || !currentConversationId) return;
+    if (!user || !userRole?.organization.id || !currentConversationId) return;
     
     setIsSaving(true);
     try {
@@ -195,7 +173,6 @@ export const DraftingChatInterface = ({
         const { error } = await supabase
           .from('document_drafts')
           .update({
-            title: documentName,
             content: { text: content, changes: [] },
             updated_at: new Date().toISOString(),
           })
@@ -236,8 +213,8 @@ export const DraftingChatInterface = ({
           .insert({
             user_id: user.id,
             organization_id: userRole.organization.id,
-            title: documentName,
-            document_type: 'New Document',
+            title: 'Untitled document',
+            document_type: 'General',
             content: { text: content, changes: [] },
             conversation_id: currentConversationId,
             status: 'draft',
@@ -321,14 +298,8 @@ export const DraftingChatInterface = ({
     
     // Ensure a conversation exists; create it on first message with a sensible title
     if (!currentConversationId) {
-      const derivedTitle = (documentName && documentName.trim().length > 0)
-        ? documentName
-        : (messageText.slice(0, 60) + (messageText.length > 60 ? '...' : ''));
+      const derivedTitle = messageText.slice(0, 60) + (messageText.length > 60 ? '...' : '');
       await createNewConversation(derivedTitle);
-      if (!documentName) {
-        setDocumentName(derivedTitle);
-        onDocumentNameChange?.(derivedTitle);
-      }
     }
 
     const mode = 'generate';
@@ -632,13 +603,10 @@ export const DraftingChatInterface = ({
   };
 
   const saveDraft = async (prompt: string, content: string, mode: string) => {
-    // Don't auto-save unless document name is set
-    if (!documentName) return;
-    
     setIsSaving(true);
     try {
-      const title = documentName || currentDraftTitle || prompt.slice(0, 100);
-      const documentType = mode === 'redline' ? 'Redlined Document' : 'New Document';
+      const title = currentDraftTitle || prompt.slice(0, 100);
+      const documentType = mode === 'redline' ? 'Redlined Document' : 'General';
 
       if (currentDraftId) {
         // Update existing draft
@@ -836,17 +804,6 @@ export const DraftingChatInterface = ({
               </span>
             )}
           </div>
-          <input
-            type="text"
-            value={documentName}
-            onChange={(e) => {
-              setDocumentName(e.target.value);
-              onDocumentNameChange?.(e.target.value || "New Document");
-            }}
-            placeholder="New Document"
-            className="w-full px-3 py-2 text-sm bg-background border rounded-lg outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all placeholder:text-muted-foreground"
-            disabled={isLoading}
-          />
         </div>
 
         <div className="flex items-center gap-2">

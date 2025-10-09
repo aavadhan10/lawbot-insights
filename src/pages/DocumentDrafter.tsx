@@ -11,7 +11,6 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 const DocumentDrafter = () => {
   const [documentContent, setDocumentContent] = useState("");
   const [displayedContent, setDisplayedContent] = useState("");
-  const [documentTitle, setDocumentTitle] = useState("New Document");
   const [documentChanges, setDocumentChanges] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string>();
@@ -61,7 +60,6 @@ const DocumentDrafter = () => {
 
   const handleDocumentGenerated = (content: string, changes?: any[], draftId?: string) => {
     setDocumentContent(content);
-    setDocumentTitle(changes ? "Redlined Document" : "Generated Document");
     setDocumentChanges(changes || []);
     if (draftId) {
       setCurrentDraftId(draftId);
@@ -76,7 +74,7 @@ const DocumentDrafter = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${documentTitle}.txt`;
+      a.download = `document.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -107,10 +105,6 @@ const DocumentDrafter = () => {
     });
   };
 
-  const handleTitleSaved = (newTitle: string) => {
-    setDocumentTitle(newTitle);
-  };
-
   const createNewDocument = async () => {
     if (!userRole?.organization.id) return;
 
@@ -118,11 +112,10 @@ const DocumentDrafter = () => {
     if (!user) return;
 
     try {
-      const timestamp = new Date().toLocaleString();
       const { data, error } = await supabase
         .from('document_drafts')
         .insert({
-          title: `Untitled Document - ${timestamp}`,
+          title: 'Untitled document',
           document_type: 'General',
           content: { text: '', changes: [] },
           user_id: user.id,
@@ -186,12 +179,11 @@ const DocumentDrafter = () => {
           <div className="flex-1 overflow-hidden">
             <DocumentEditor
               content={displayedContent}
-              title={documentTitle}
+              title="Untitled document"
               changes={documentChanges}
               isGenerating={isGenerating}
               onExport={handleExport}
               draftId={currentDraftId}
-              onTitleSaved={handleTitleSaved}
             />
           </div>
           
@@ -202,7 +194,6 @@ const DocumentDrafter = () => {
               onGeneratingChange={setIsGenerating}
               selectedDraftId={selectedDraftId}
               selectedConversationId={selectedConversationId}
-              onDocumentNameChange={setDocumentTitle}
             />
           </div>
         </div>

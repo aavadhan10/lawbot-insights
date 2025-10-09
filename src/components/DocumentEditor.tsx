@@ -14,7 +14,8 @@ import {
   History,
   Check,
   X,
-  Pencil
+  Pencil,
+  FileDown
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,6 +30,8 @@ import { DraftVersionHistory } from "./DraftVersionHistory";
 import { exportToTxt, exportToDocx, exportToPdf } from "@/utils/exportDocument";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { TemplatePreviewDialog } from "./TemplatePreviewDialog";
+import { templates, Template } from "@/utils/templates";
 
 interface Change {
   type: 'deletion' | 'insertion';
@@ -70,6 +73,9 @@ export const DocumentEditor = ({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [lastVersionContent, setLastVersionContent] = useState(content);
   const [lastVersionTitle, setLastVersionTitle] = useState(title);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const editorRef = useRef<RichTextEditorRef>(null);
 
   useEffect(() => {
@@ -395,6 +401,19 @@ export const DocumentEditor = ({
     }
   };
 
+  const handleInsertTemplate = (template: Template) => {
+    const editor = editorRef.current?.editor;
+    if (!editor) return;
+    editor.chain().focus().insertContentAt(editor.state.doc.content.size, template.content).run();
+    toast.success(`${template.title} inserted`);
+  };
+
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+    setShowTemplatePreview(true);
+    setShowTemplateSelector(false);
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Unified Header with Title and Controls */}
@@ -575,6 +594,30 @@ export const DocumentEditor = ({
             title="Text Color"
           />
         </div>
+
+        <div className="h-5 w-px bg-border mx-1" />
+
+        <DropdownMenu open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 text-xs px-3">
+              <FileDown className="h-4 w-4 mr-2" />
+              Insert Template
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64">
+            {templates.map((template) => (
+              <DropdownMenuItem 
+                key={template.id}
+                onClick={() => handleTemplateClick(template)}
+              >
+                <div>
+                  <div className="font-medium">{template.title}</div>
+                  <div className="text-xs text-muted-foreground">{template.type}</div>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
       </div>
       
