@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Download, 
@@ -12,11 +11,7 @@ import {
   Underline, 
   Strikethrough,
   AlignLeft,
-  Edit3,
-  Save,
-  Palette,
   History,
-  RotateCcw,
   Check,
   X,
   Pencil
@@ -72,10 +67,9 @@ export const DocumentEditor = ({
   const [textColor, setTextColor] = useState("#000000");
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [lastVersionContent, setLastVersionContent] = useState(content);
-  const [showVersionDialog, setShowVersionDialog] = useState(false);
-  const [versionName, setVersionName] = useState("");
+  const [lastVersionTitle, setLastVersionTitle] = useState(title);
   const editorRef = useRef<RichTextEditorRef>(null);
 
   useEffect(() => {
@@ -142,6 +136,7 @@ export const DocumentEditor = ({
     setEditableTitle(title);
     setTempTitle(title);
     setPreviousTitle(title);
+    setLastVersionTitle(title);
   }, [content, draftId, title]);
 
   const getCurrentVersion = async () => {
@@ -184,40 +179,42 @@ export const DocumentEditor = ({
     }
   };
 
-  // Auto-save draft every 10 seconds
+  // Auto-save draft every 3 seconds
   useEffect(() => {
     if (!draftId) return;
 
     const timer = setTimeout(async () => {
-      if (editorContent !== originalContent || editableTitle !== previousTitle) {
+      const hasContentChange = editorContent !== originalContent;
+      const hasTitleChange = editableTitle !== previousTitle;
+      
+      if (hasContentChange || hasTitleChange) {
         setSaveStatus('saving');
         await saveDraft(false);
+        setOriginalContent(editorContent);
+        setPreviousTitle(editableTitle);
         setSaveStatus('saved');
       }
-    }, 10000); // 10 seconds
+    }, 3000); // 3 seconds
 
     return () => clearTimeout(timer);
-  }, [editorContent, editableTitle, draftId, originalContent, previousTitle]);
+  }, [editorContent, editableTitle, draftId]);
 
-  // Keyboard shortcuts
+  // Auto-save version every 30 seconds if there are significant changes
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
-        e.preventDefault();
-        setShowVersionDialog(true);
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        setSaveStatus('saving');
-        saveDraft().then(() => {
-          setSaveStatus('saved');
-          toast.success("Draft saved");
-        });
-      }
-    };
+    if (!draftId) return;
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [draftId]);
+    const timer = setTimeout(async () => {
+      const hasSignificantChange = 
+        editorContent !== lastVersionContent || 
+        editableTitle !== lastVersionTitle;
+      
+      if (hasSignificantChange) {
+        await createAutoVersion();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(timer);
+  }, [editorContent, editableTitle, draftId, lastVersionContent, lastVersionTitle]);
 
   const calculateChangesSummary = (oldContent: string, newContent: string, oldTitle: string, newTitle: string): string => {
     const parts = [];
@@ -241,27 +238,23 @@ export const DocumentEditor = ({
     return parts.length > 0 ? parts.join('; ') : 'Manual save';
   };
 
-  const handleManualSave = async () => {
-    setShowVersionDialog(true);
-  };
-
-  const handleSaveVersion = async () => {
+  const createAutoVersion = async () => {
     if (!draftId) return;
 
-    setIsSaving(true);
     try {
-      // First save the current draft content
-      await saveDraft(false);
-
       // Get current version number
       const nextVersion = await getCurrentVersion() + 1;
 
       // Create change summary
-      const titleChanged = editableTitle !== previousTitle;
+      const titleChanged = editableTitle !== lastVersionTitle;
       const charDelta = editorContent.length - lastVersionContent.length;
-      let changesSummary = versionName || `Version ${nextVersion}`;
-      if (titleChanged) changesSummary += ` - Title changed`;
-      if (charDelta !== 0) changesSummary += ` - ${Math.abs(charDelta)} chars ${charDelta > 0 ? 'added' : 'removed'}`;
+      const changesParts = [];
+      
+      if (titleChanged) changesParts.push('Title changed');
+      if (charDelta > 0) changesParts.push(`${charDelta} chars added`);
+      if (charDelta < 0) changesParts.push(`${Math.abs(charDelta)} chars removed`);
+      
+      const changesSummary = changesParts.length > 0 ? changesParts.join(', ') : 'Auto-saved';
 
       // Create a new version entry
       const { error: versionError } = await supabase
@@ -271,32 +264,22 @@ export const DocumentEditor = ({
           version_number: nextVersion,
           content: { text: editorContent, changes: [] },
           changes_summary: changesSummary,
-          version_name: versionName || null,
+          version_name: null,
         });
 
       if (versionError) throw versionError;
 
       // Update the draft's current version
-      const { error: updateError } = await supabase
+      await supabase
         .from('document_drafts')
         .update({ current_version: nextVersion })
         .eq('id', draftId);
 
-      if (updateError) throw updateError;
-
       setCurrentVersion(nextVersion);
       setLastVersionContent(editorContent);
-      setOriginalContent(editorContent);
-      setPreviousTitle(editableTitle);
-      setVersionName("");
-      setShowVersionDialog(false);
-      setSaveStatus('saved');
-      toast.success(versionName ? `"${versionName}" saved` : `Version ${nextVersion} saved`);
+      setLastVersionTitle(editableTitle);
     } catch (error) {
-      console.error('Error saving version:', error);
-      toast.error('Failed to save version');
-    } finally {
-      setIsSaving(false);
+      console.error('Error creating auto version:', error);
     }
   };
 
@@ -464,18 +447,8 @@ export const DocumentEditor = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground mr-2">
-            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'All changes saved' : ''}
+            {saveStatus === 'saving' ? 'Saving...' : 'All changes saved'}
           </span>
-          <Button
-            onClick={handleManualSave}
-            disabled={isSaving}
-            size="sm"
-            className="h-9 text-xs gap-1.5"
-            title="Save Version (Ctrl+Shift+S)"
-          >
-            <Save className="h-4 w-4" />
-            <span className="hidden sm:inline">Save Version</span>
-          </Button>
           {draftId && (
             <Sheet>
               <SheetTrigger asChild>
@@ -485,7 +458,7 @@ export const DocumentEditor = ({
                   className="h-9 text-xs gap-1.5"
                 >
                   <History className="h-4 w-4" />
-                  <span className="hidden sm:inline">History</span>
+                  <span className="hidden sm:inline">Version History</span>
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-96 bg-white dark:bg-neutral-950 border-l shadow-2xl">
@@ -617,45 +590,7 @@ export const DocumentEditor = ({
               </div>
             ) : content ? (
               <div className="bg-background rounded-xl shadow-lg border p-10 sm:p-16 min-h-[calc(100vh-16rem)]">
-                {/* Changes Banner - Always show when there are unsaved changes */}
-                {editorContent !== originalContent && (
-                  <div className="mb-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Edit3 className="h-4 w-4 text-yellow-600" />
-                      <div>
-                        <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
-                          Unsaved changes
-                        </h3>
-                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                          Click "Save Version" to preserve your changes
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleRevert}
-                        className="h-8 text-xs"
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Revert
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={handleManualSave}
-                        disabled={isSaving}
-                        className="h-8 text-xs"
-                      >
-                        <Save className="h-3 w-3 mr-1" />
-                        Save Version
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                
-                <RichTextEditor 
+                <RichTextEditor
                   ref={editorRef}
                   content={editorContent}
                   onChange={setEditorContent}
@@ -687,46 +622,6 @@ export const DocumentEditor = ({
           </div>
         </ScrollArea>
       </div>
-
-      {/* Version Name Dialog */}
-      <Dialog open={showVersionDialog} onOpenChange={setShowVersionDialog}>
-        <DialogContent className="bg-white dark:bg-neutral-950">
-          <DialogHeader>
-            <DialogTitle>Name this version</DialogTitle>
-            <DialogDescription>
-              Give this version a name to help you identify it later (optional)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <Input
-              value={versionName}
-              onChange={(e) => setVersionName(e.target.value)}
-              placeholder="e.g., Final draft, Client review"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSaveVersion();
-                }
-              }}
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setVersionName("");
-                  setShowVersionDialog(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleSaveVersion} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Version'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
