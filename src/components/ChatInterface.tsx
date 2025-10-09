@@ -138,10 +138,14 @@ export const ChatInterface = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
+      // Get user's organization
+      const { data: orgId } = await supabase.rpc('get_user_organization', { _user_id: user.id });
+
       const { data, error } = await supabase
         .from("conversations")
         .insert({ 
-          user_id: user.id, 
+          user_id: user.id,
+          organization_id: orgId,
           title,
           conversation_type: 'assistant'
         })
