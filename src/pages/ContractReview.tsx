@@ -182,7 +182,16 @@ export default function ContractReview() {
         </div>
 
         {!currentReviewId ? (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <>
+            <div className="border-l-4 border-primary bg-primary/10 p-4 rounded mb-6">
+              <p className="font-medium mb-1">Document Size Limit</p>
+              <p className="text-sm text-muted-foreground">
+                For optimal performance, documents larger than 50,000 characters will be analyzed partially. 
+                Complex contracts may take 30-60 seconds to analyze.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
             {/* Upload New Contract */}
             <div className="border rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -259,7 +268,8 @@ export default function ContractReview() {
                 )}
               </div>
             </div>
-          </div>
+            </div>
+          </>
         ) : (
           <div className="space-y-6">
             {reviewData?.review.status === 'processing' ? (
@@ -279,6 +289,20 @@ export default function ContractReview() {
                     New Review
                   </Button>
                 </div>
+
+                {reviewData.review.analysis_results && 
+                 typeof reviewData.review.analysis_results === 'object' &&
+                 'was_truncated' in reviewData.review.analysis_results &&
+                 reviewData.review.analysis_results.was_truncated && (
+                  <div className="border-l-4 border-warning bg-warning/10 p-4 rounded">
+                    <p className="font-medium text-warning mb-1">Large Document Notice</p>
+                    <p className="text-sm">
+                      This document was large ({(reviewData.review.analysis_results as any).total_chars?.toLocaleString()} characters), 
+                      so we analyzed the first {(reviewData.review.analysis_results as any).analyzed_chars?.toLocaleString()} characters. 
+                      For complete analysis, consider breaking the document into smaller sections.
+                    </p>
+                  </div>
+                )}
 
                 <ReviewSummary 
                   findings={reviewData.findings} 

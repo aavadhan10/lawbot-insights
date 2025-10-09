@@ -46,6 +46,19 @@ serve(async (req) => {
       throw new Error('Document not found');
     }
 
+    console.log('Document fetched, length:', document.content_text?.length || 0);
+
+    // For very large documents, truncate to first 50,000 characters to avoid timeouts
+    const MAX_CHARS = 50000;
+    let contentToAnalyze = document.content_text || '';
+    let wasTruncated = false;
+    
+    if (contentToAnalyze.length > MAX_CHARS) {
+      console.log(`Document too large (${contentToAnalyze.length} chars), truncating to ${MAX_CHARS}`);
+      contentToAnalyze = contentToAnalyze.substring(0, MAX_CHARS);
+      wasTruncated = true;
+    }
+
     // Create contract review record
     const { data: review, error: reviewError } = await supabase
       .from('contract_reviews')
@@ -93,6 +106,9 @@ Focus on common contract issues:
 
 Be thorough and extract all issues, not just the most critical ones.`;
 
+    console.log('Sending to AI for analysis...');
+    const startTime = Date.now();
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -105,7 +121,7 @@ Be thorough and extract all issues, not just the most critical ones.`;
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Analyze this contract and extract all problematic clauses:\n\n${document.content_text}` 
+            content: `Analyze this contract and extract all problematic clauses${wasTruncated ? ' (analyzing first 50,000 characters)' : ''}:\n\n${contentToAnalyze}` 
           }
         ],
         tools: [{
@@ -191,15 +207,17 @@ Be thorough and extract all issues, not just the most critical ones.`;
     }
 
     const aiResponse = await response.json();
-    console.log('AI response received');
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`AI response received in ${duration}s`);
 
     const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
+      console.error('No tool call in AI response:', JSON.stringify(aiResponse).substring(0, 500));
       throw new Error('No tool call in AI response');
     }
 
     const findings = JSON.parse(toolCall.function.arguments).findings;
-    console.log(`Extracted ${findings.length} findings`);
+    console.log(`Extracted ${findings.length} findings${wasTruncated ? ' (from truncated document)' : ''}`);
 
     // Insert findings into database
     const findingsToInsert = findings.map((finding: any) => ({
@@ -233,7 +251,11 @@ Be thorough and extract all issues, not just the most critical ones.`;
           total_findings: findings.length,
           high_risk: findings.filter((f: any) => f.risk_level === 'high').length,
           medium_risk: findings.filter((f: any) => f.risk_level === 'medium').length,
-          low_risk: findings.filter((f: any) => f.risk_level === 'low').length
+          low_risk: findings.filter((f: any) => f.risk_level === 'low').length,
+          was_truncated: wasTruncated,
+          analyzed_chars: contentToAnalyze.length,
+          total_chars: document.content_text?.length || 0,
+          processing_time_seconds: parseFloat(duration)
         }
       })
       .eq('id', review.id);
