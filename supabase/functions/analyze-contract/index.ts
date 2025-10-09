@@ -6,13 +6,91 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to chunk text at sentence boundaries
+function chunkText(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  
+  const chunks: string[] = [];
+  let start = 0;
+  
+  while (start < text.length) {
+    let end = Math.min(start + maxChars, text.length);
+    
+    // Try to break at sentence boundary
+    if (end < text.length) {
+      const lastPeriod = text.lastIndexOf('. ', end);
+      const lastNewline = text.lastIndexOf('\n\n', end);
+      const breakPoint = Math.max(lastPeriod, lastNewline);
+      if (breakPoint > start + maxChars * 0.7) {
+        end = breakPoint + 1;
+      }
+    }
+    
+    chunks.push(text.substring(start, end));
+    start = end;
+  }
+  
+  return chunks;
+}
+
+// Helper to call AI with retries and timeout
+async function callAIWithRetry(
+  url: string,
+  payload: any,
+  lovableApiKey: string,
+  maxRetries = 2
+): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI gateway error ${response.status}: ${errorText.substring(0, 200)}`);
+      }
+      
+      // Parse JSON manually to catch incomplete responses
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        console.error(`JSON parse error (attempt ${attempt + 1}), first 300 chars:`, text.substring(0, 300));
+        throw new Error('Invalid JSON response from AI');
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (attempt === maxRetries) throw error;
+      
+      // Exponential backoff
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('All retry attempts failed');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { documentId } = await req.json();
+    const { documentId, mode = 'quick' } = await req.json();
     
     if (!documentId) {
       throw new Error('documentId is required');
@@ -48,16 +126,21 @@ serve(async (req) => {
 
     console.log('Document fetched, length:', document.content_text?.length || 0);
 
-    // For very large documents, truncate to first 50,000 characters to avoid timeouts
-    const MAX_CHARS = 50000;
-    let contentToAnalyze = document.content_text || '';
-    let wasTruncated = false;
+    // Set limits based on mode
+    const MAX_CHARS = mode === 'quick' ? 20000 : 50000;
+    const CHUNK_SIZE = mode === 'quick' ? 10000 : 15000;
+    const MODEL = mode === 'quick' ? 'google/gemini-2.5-flash-lite' : 'google/gemini-2.5-flash';
     
-    if (contentToAnalyze.length > MAX_CHARS) {
+    let contentToAnalyze = document.content_text || '';
+    const shouldChunk = contentToAnalyze.length > 30000;
+    
+    if (contentToAnalyze.length > MAX_CHARS && !shouldChunk) {
       console.log(`Document too large (${contentToAnalyze.length} chars), truncating to ${MAX_CHARS}`);
       contentToAnalyze = contentToAnalyze.substring(0, MAX_CHARS);
-      wasTruncated = true;
     }
+    
+    const chunks = shouldChunk ? chunkText(contentToAnalyze, CHUNK_SIZE) : [contentToAnalyze];
+    console.log(`Processing in ${chunks.length} chunk(s) using ${MODEL} (${mode} mode)`);
 
     // Create contract review record
     const { data: review, error: reviewError } = await supabase
@@ -78,8 +161,11 @@ serve(async (req) => {
 
     console.log('Created review:', review.id);
 
-    // Start background analysis task
+    // Background analysis with EdgeRuntime.waitUntil
     const backgroundAnalysis = async () => {
+      const startTime = Date.now();
+      const allFindings: any[] = [];
+      
       try {
         // Analyze contract with AI
         const systemPrompt = `You are an expert legal contract reviewer specializing in identifying risks and providing actionable recommendations. 
@@ -109,119 +195,151 @@ Focus on common contract issues:
 
 Be thorough and extract all issues, not just the most critical ones.`;
 
-        console.log('Sending to AI for analysis...');
-        const startTime = Date.now();
-
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { 
-                role: 'user', 
-                content: `Analyze this contract and extract all problematic clauses${wasTruncated ? ' (analyzing first 50,000 characters)' : ''}:\n\n${contentToAnalyze}` 
+        // Process each chunk
+        for (let i = 0; i < chunks.length; i++) {
+          const chunkStartTime = Date.now();
+          console.log(`Processing chunk ${i + 1}/${chunks.length}...`);
+          
+          const chunkContent = chunks[i];
+          let chunkFindings: any[] = [];
+          let usedFallback = false;
+          
+          // Try primary model with retries
+          try {
+            const payload = {
+              model: MODEL,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { 
+                  role: 'user', 
+                  content: `Analyze this contract ${chunks.length > 1 ? `(part ${i + 1}/${chunks.length})` : ''}:\n\n${chunkContent}` 
+                }
+              ],
+              tools: [{
+                type: 'function',
+                function: {
+                  name: 'extract_clause_findings',
+                  description: 'Extract all problematic clauses from the contract with detailed analysis',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      findings: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            clause_title: { type: 'string' },
+                            clause_text: { type: 'string' },
+                            risk_level: { type: 'string', enum: ['high', 'medium', 'low'] },
+                            issue_description: { type: 'string' },
+                            recommendation: { type: 'string' },
+                            original_text: { type: 'string' },
+                            suggested_text: { type: 'string' }
+                          },
+                          required: ['clause_title', 'clause_text', 'risk_level', 'issue_description', 'recommendation', 'original_text', 'suggested_text']
+                        }
+                      }
+                    },
+                    required: ['findings']
+                  }
+                }
+              }],
+              tool_choice: { type: 'function', function: { name: 'extract_clause_findings' } }
+            };
+            
+            const aiResponse = await callAIWithRetry('https://ai.gateway.lovable.dev/v1/chat/completions', payload, lovableApiKey);
+            
+            const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
+            if (toolCall?.function?.arguments) {
+              chunkFindings = JSON.parse(toolCall.function.arguments).findings || [];
+            } else {
+              // Fallback: try parsing inline JSON from content
+              const content = aiResponse.choices?.[0]?.message?.content || '';
+              const jsonMatch = content.match(/\{[\s\S]*"findings"[\s\S]*\}/);
+              if (jsonMatch) {
+                chunkFindings = JSON.parse(jsonMatch[0]).findings || [];
               }
-            ],
-            tools: [{
-              type: 'function',
-              function: {
-                name: 'extract_clause_findings',
-                description: 'Extract all problematic clauses from the contract with detailed analysis',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    findings: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          clause_title: { 
-                            type: 'string',
-                            description: 'Title describing the clause type (e.g., "Unlimited Liability Clause", "Termination for Convenience")'
-                          },
-                          clause_text: { 
-                            type: 'string',
-                            description: 'The full text of the relevant clause from the contract'
-                          },
-                          risk_level: { 
-                            type: 'string', 
-                            enum: ['high', 'medium', 'low'],
-                            description: 'Risk assessment level'
-                          },
-                          issue_description: { 
-                            type: 'string',
-                            description: 'Detailed explanation of why this clause is problematic and what risks it poses'
-                          },
-                          recommendation: { 
-                            type: 'string',
-                            description: 'Specific actionable recommendation for addressing this issue'
-                          },
-                          original_text: { 
-                            type: 'string',
-                            description: 'The exact problematic text that should be modified'
-                          },
-                          suggested_text: { 
-                            type: 'string',
-                            description: 'The recommended replacement text that addresses the issue'
+            }
+          } catch (primaryError) {
+            console.error(`Chunk ${i + 1} failed with primary model, trying fast fallback:`, primaryError);
+            
+            // Fast fallback: flash-lite with reduced content
+            try {
+              const fallbackContent = chunkContent.substring(0, 10000);
+              const fallbackPayload = {
+                model: 'google/gemini-2.5-flash-lite',
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: `Analyze this contract (quick scan):\n\n${fallbackContent}` }
+                ],
+                tools: [{
+                  type: 'function',
+                  function: {
+                    name: 'extract_clause_findings',
+                    description: 'Extract problematic clauses',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        findings: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              clause_title: { type: 'string' },
+                              clause_text: { type: 'string' },
+                              risk_level: { type: 'string' },
+                              issue_description: { type: 'string' },
+                              recommendation: { type: 'string' },
+                              original_text: { type: 'string' },
+                              suggested_text: { type: 'string' }
+                            }
                           }
-                        },
-                        required: [
-                          'clause_title',
-                          'clause_text',
-                          'risk_level',
-                          'issue_description',
-                          'recommendation',
-                          'original_text',
-                          'suggested_text'
-                        ]
+                        }
                       }
                     }
-                  },
-                  required: ['findings']
-                }
+                  }
+                }],
+                tool_choice: { type: 'function', function: { name: 'extract_clause_findings' } }
+              };
+              
+              const fallbackResponse = await callAIWithRetry('https://ai.gateway.lovable.dev/v1/chat/completions', fallbackPayload, lovableApiKey, 1);
+              const toolCall = fallbackResponse.choices?.[0]?.message?.tool_calls?.[0];
+              if (toolCall?.function?.arguments) {
+                chunkFindings = JSON.parse(toolCall.function.arguments).findings || [];
+                usedFallback = true;
               }
-            }],
-            tool_choice: { type: 'function', function: { name: 'extract_clause_findings' } }
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('AI gateway error:', response.status, errorText);
+            } catch (fallbackError) {
+              console.error(`Chunk ${i + 1} fallback also failed:`, fallbackError);
+              throw new Error(`Failed to process chunk ${i + 1}: ${fallbackError}`);
+            }
+          }
           
-          // Update review status to failed
+          allFindings.push(...chunkFindings);
+          const chunkDuration = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
+          console.log(`Chunk ${i + 1} done in ${chunkDuration}s: ${chunkFindings.length} findings${usedFallback ? ' (fallback)' : ''}`);
+          
+          // Update progress
+          const progress = Math.round(((i + 1) / chunks.length) * 100);
           await supabase
             .from('contract_reviews')
-            .update({ status: 'failed' })
+            .update({
+              analysis_results: {
+                progress_percent: progress,
+                processed_chunks: i + 1,
+                total_chunks: chunks.length,
+                total_findings: allFindings.length,
+                high_risk: allFindings.filter(f => f.risk_level === 'high').length,
+                medium_risk: allFindings.filter(f => f.risk_level === 'medium').length,
+                low_risk: allFindings.filter(f => f.risk_level === 'low').length
+              }
+            })
             .eq('id', review.id);
-          
-          return;
         }
 
-        const aiResponse = await response.json();
-        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`AI response received in ${duration}s`);
-
-        const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) {
-          console.error('No tool call in AI response:', JSON.stringify(aiResponse).substring(0, 500));
-          await supabase
-            .from('contract_reviews')
-            .update({ status: 'failed' })
-            .eq('id', review.id);
-          return;
-        }
-
-        const findings = JSON.parse(toolCall.function.arguments).findings;
-        console.log(`Extracted ${findings.length} findings${wasTruncated ? ' (from truncated document)' : ''}`);
+        console.log(`Extracted total ${allFindings.length} findings from ${chunks.length} chunk(s)`);
 
         // Insert findings into database
-        const findingsToInsert = findings.map((finding: any) => ({
+        const findingsToInsert = allFindings.map((finding: any) => ({
           review_id: review.id,
           clause_title: finding.clause_title,
           clause_text: finding.clause_text,
@@ -247,36 +365,59 @@ Be thorough and extract all issues, not just the most critical ones.`;
           return;
         }
 
-        // Update review status
+        // Update review status - final
+        const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
         await supabase
           .from('contract_reviews')
           .update({ 
             status: 'completed',
             analysis_results: { 
-              total_findings: findings.length,
-              high_risk: findings.filter((f: any) => f.risk_level === 'high').length,
-              medium_risk: findings.filter((f: any) => f.risk_level === 'medium').length,
-              low_risk: findings.filter((f: any) => f.risk_level === 'low').length,
-              was_truncated: wasTruncated,
+              total_findings: allFindings.length,
+              high_risk: allFindings.filter((f: any) => f.risk_level === 'high').length,
+              medium_risk: allFindings.filter((f: any) => f.risk_level === 'medium').length,
+              low_risk: allFindings.filter((f: any) => f.risk_level === 'low').length,
+              was_chunked: chunks.length > 1,
+              total_chunks: chunks.length,
               analyzed_chars: contentToAnalyze.length,
               total_chars: document.content_text?.length || 0,
-              processing_time_seconds: parseFloat(duration)
+              processing_time_seconds: parseFloat(totalDuration),
+              mode: mode
             }
           })
           .eq('id', review.id);
 
-        console.log('Contract analysis completed successfully');
+        console.log(`Contract analysis completed in ${totalDuration}s`);
       } catch (error) {
         console.error('Background analysis error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         await supabase
           .from('contract_reviews')
-          .update({ status: 'failed' })
+          .update({ 
+            status: 'failed',
+            analysis_results: {
+              error_message: errorMessage,
+              failed_at: new Date().toISOString(),
+              mode: mode
+            }
+          })
           .eq('id', review.id);
       }
     };
 
-    // Start background task (don't await)
-    backgroundAnalysis();
+    // Use EdgeRuntime.waitUntil for reliable background execution
+    try {
+      // @ts-ignore - EdgeRuntime is available in Deno deploy
+      const runtime = globalThis as any;
+      if (runtime.EdgeRuntime && runtime.EdgeRuntime.waitUntil) {
+        runtime.EdgeRuntime.waitUntil(backgroundAnalysis());
+      } else {
+        // Fallback for local development
+        backgroundAnalysis();
+      }
+    } catch {
+      // Fallback if EdgeRuntime not available
+      backgroundAnalysis();
+    }
 
     // Return immediately
     return new Response(

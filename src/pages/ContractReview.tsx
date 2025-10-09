@@ -23,6 +23,7 @@ export default function ContractReview() {
   const [currentReviewId, setCurrentReviewId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showContractViewer, setShowContractViewer] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<'quick' | 'thorough'>('quick');
 
   // Fetch existing documents
   const { data: documents } = useQuery({
@@ -125,9 +126,9 @@ export default function ContractReview() {
 
       if (docError) throw docError;
 
-      // Start contract analysis
+      // Start contract analysis with selected mode
       const analyzeResponse = await supabase.functions.invoke('analyze-contract', {
-        body: { documentId: document.id }
+        body: { documentId: document.id, mode: analysisMode }
       });
 
       if (analyzeResponse.error) throw analyzeResponse.error;
@@ -151,7 +152,7 @@ export default function ContractReview() {
     
     try {
       const analyzeResponse = await supabase.functions.invoke('analyze-contract', {
-        body: { documentId }
+        body: { documentId, mode: analysisMode }
       });
 
       if (analyzeResponse.error) throw analyzeResponse.error;
@@ -165,6 +166,12 @@ export default function ContractReview() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleRetryAnalysis = async () => {
+    if (!reviewData?.review.document_id) return;
+    setCurrentReviewId(null);
+    setTimeout(() => handleAnalyzeExisting(reviewData.review.document_id), 100);
   };
 
   if (!user) {
@@ -212,23 +219,53 @@ export default function ContractReview() {
                         <p className="font-medium mb-1">Click to upload or drag and drop</p>
                         <p className="text-sm text-muted-foreground">PDF, DOCX, or TXT (max 20MB)</p>
                       </>
-                    )}
-                  </label>
-                </div>
-                <Button 
-                  onClick={handleUploadAndAnalyze} 
-                  disabled={!selectedFile || isAnalyzing}
-                  className="w-full"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    "Upload & Analyze"
-                  )}
-                </Button>
+                     )}
+                   </label>
+                 </div>
+                 
+                 <div className="space-y-2">
+                   <label className="text-sm font-medium">Analysis Mode</label>
+                   <div className="flex gap-2">
+                     <Button
+                       type="button"
+                       variant={analysisMode === 'quick' ? 'default' : 'outline'}
+                       onClick={() => setAnalysisMode('quick')}
+                       className="flex-1"
+                       size="sm"
+                     >
+                       Quick (20k chars)
+                     </Button>
+                     <Button
+                       type="button"
+                       variant={analysisMode === 'thorough' ? 'default' : 'outline'}
+                       onClick={() => setAnalysisMode('thorough')}
+                       className="flex-1"
+                       size="sm"
+                     >
+                       Thorough (50k+ chars)
+                     </Button>
+                   </div>
+                   <p className="text-xs text-muted-foreground">
+                     {analysisMode === 'quick' 
+                       ? 'Fast analysis with flash-lite model, best for quick reviews'
+                       : 'Comprehensive analysis with chunking for large documents'}
+                   </p>
+                 </div>
+                 
+                 <Button 
+                   onClick={handleUploadAndAnalyze} 
+                   disabled={!selectedFile || isAnalyzing}
+                   className="w-full"
+                 >
+                   {isAnalyzing ? (
+                     <>
+                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                       Analyzing...
+                     </>
+                   ) : (
+                     "Upload & Analyze"
+                   )}
+                 </Button>
               </div>
             </div>
 
@@ -272,7 +309,26 @@ export default function ContractReview() {
               <div className="text-center py-12">
                 <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Analyzing Contract...</h3>
-                <p className="text-muted-foreground">
+                
+                {reviewData.review.analysis_results && 
+                 typeof reviewData.review.analysis_results === 'object' &&
+                 'progress_percent' in reviewData.review.analysis_results && (
+                  <div className="max-w-md mx-auto mt-4 space-y-2">
+                    <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-primary h-full transition-all duration-300"
+                        style={{ width: `${(reviewData.review.analysis_results as any).progress_percent || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Processing chunk {(reviewData.review.analysis_results as any).processed_chunks || 0} of {(reviewData.review.analysis_results as any).total_chunks || 0}
+                      {' • '}
+                      {(reviewData.review.analysis_results as any).total_findings || 0} findings so far
+                    </p>
+                  </div>
+                )}
+                
+                <p className="text-muted-foreground mt-2">
                   Extracting clauses, assessing risks, and benchmarking against market standards.
                 </p>
               </div>
@@ -342,16 +398,46 @@ export default function ContractReview() {
               </div>
             ) : reviewData?.review.status === 'failed' ? (
               <div className="text-center py-12">
-                <p className="text-destructive mb-2">Analysis failed</p>
+                <p className="text-destructive mb-2">Analysis Failed</p>
+                {reviewData.review.analysis_results && 
+                 typeof reviewData.review.analysis_results === 'object' &&
+                 'error_message' in reviewData.review.analysis_results && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {(reviewData.review.analysis_results as any).error_message}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground mb-4">
-                  There was an error analyzing this contract. Please try again.
+                  {reviewData.review.analysis_results && 
+                   typeof reviewData.review.analysis_results === 'object' &&
+                   'mode' in reviewData.review.analysis_results &&
+                   (reviewData.review.analysis_results as any).mode === 'thorough'
+                    ? "Try Quick mode for faster analysis on large documents"
+                    : "Try Thorough mode for more comprehensive analysis"}
                 </p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentReviewId(null)}
-                >
-                  Start New Review
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      if (reviewData.review.analysis_results && 
+                          typeof reviewData.review.analysis_results === 'object' &&
+                          'mode' in reviewData.review.analysis_results) {
+                        setAnalysisMode((reviewData.review.analysis_results as any).mode === 'thorough' ? 'quick' : 'thorough');
+                      }
+                      handleRetryAnalysis();
+                    }}
+                  >
+                    Retry with {reviewData.review.analysis_results && 
+                               typeof reviewData.review.analysis_results === 'object' &&
+                               'mode' in reviewData.review.analysis_results &&
+                               (reviewData.review.analysis_results as any).mode === 'thorough' ? 'Quick' : 'Thorough'} Mode
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setCurrentReviewId(null)}
+                  >
+                    Start New Review
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="text-center py-12">
