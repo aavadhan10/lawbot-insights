@@ -480,6 +480,7 @@ Date: _______________            Date: _______________`
                                 size="icon"
                                 className="h-6 w-6 flex-shrink-0"
                                 onClick={(e) => e.stopPropagation()}
+                                title="View version history"
                               >
                                 <History className="h-3 w-3" />
                               </Button>

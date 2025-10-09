@@ -56,7 +56,6 @@ export const DocumentEditor = ({
 }: DocumentEditorProps) => {
   const [editorContent, setEditorContent] = useState(content);
   const [originalContent, setOriginalContent] = useState(content);
-  const [showEdits, setShowEdits] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [editableTitle, setEditableTitle] = useState(title);
   const [previousTitle, setPreviousTitle] = useState(title);
@@ -349,36 +348,26 @@ export const DocumentEditor = ({
     <div className="h-full flex flex-col bg-background">
       {/* Unified Header with Title and Controls */}
       <div className="border-b px-6 py-3 flex items-center justify-between flex-shrink-0 bg-background">
-        <div className="flex items-center gap-2 flex-1">
-          {isEditingTitle ? (
-            <>
-              <input
-                type="text"
-                value={editableTitle}
-                onChange={(e) => setEditableTitle(e.target.value)}
-                className="text-lg font-semibold tracking-tight bg-transparent border-b border-primary focus:outline-none"
-                autoFocus
-                onBlur={handleTitleBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveTitle();
-                  } else if (e.key === 'Escape') {
-                    setIsEditingTitle(false);
-                    setEditableTitle(title);
-                  }
-                }}
-              />
-              <Button variant="ghost" size="sm" onClick={handleSaveTitle}>
-                <Save className="h-4 w-4" />
-              </Button>
-            </>
-          ) : (
-            <h1 
-              className="text-lg font-semibold tracking-tight cursor-pointer hover:text-primary"
-              onClick={() => setIsEditingTitle(true)}
-            >
-              {editableTitle || "Draft"}
-            </h1>
+        <div className="flex items-center gap-3 flex-1">
+          <input
+            type="text"
+            value={editableTitle}
+            onChange={(e) => setEditableTitle(e.target.value)}
+            className="text-lg font-semibold tracking-tight bg-transparent border-b-2 border-transparent hover:border-muted focus:border-primary focus:outline-none transition-colors px-2 py-1 rounded"
+            placeholder="Document title..."
+            onBlur={handleTitleBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSaveTitle();
+                e.currentTarget.blur();
+              }
+            }}
+          />
+          {editableTitle !== title && (
+            <Button variant="ghost" size="sm" onClick={handleSaveTitle} className="h-8">
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              Save Title
+            </Button>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -505,17 +494,6 @@ export const DocumentEditor = ({
           />
         </div>
 
-        <div className="flex-1" />
-
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-8 text-xs text-muted-foreground gap-1.5 hover:text-foreground" 
-          onClick={() => setShowEdits(!showEdits)}
-        >
-          <Edit3 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{showEdits ? 'Hide edits' : 'Show edits'}</span>
-        </Button>
       </div>
       
       {/* Document Content with Paper-like Feel */}
@@ -530,17 +508,17 @@ export const DocumentEditor = ({
               </div>
             ) : content ? (
               <div className="bg-background rounded-xl shadow-lg border p-10 sm:p-16 min-h-[calc(100vh-16rem)]">
-                {/* Changes Banner */}
-                {showEdits && editorContent !== originalContent && (
+                {/* Changes Banner - Always show when there are unsaved changes */}
+                {editorContent !== originalContent && (
                   <div className="mb-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Edit3 className="h-4 w-4 text-yellow-600" />
                       <div>
                         <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
-                          Changes since last save
+                          Unsaved changes
                         </h3>
                         <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                          You have unsaved changes in this document
+                          Click "Save Version" to preserve your changes
                         </p>
                       </div>
                     </div>
@@ -551,6 +529,7 @@ export const DocumentEditor = ({
                         onClick={handleRevert}
                         className="h-8 text-xs"
                       >
+                        <RotateCcw className="h-3 w-3 mr-1" />
                         Revert
                       </Button>
                       <Button 
@@ -561,7 +540,7 @@ export const DocumentEditor = ({
                         className="h-8 text-xs"
                       >
                         <Save className="h-3 w-3 mr-1" />
-                        Save
+                        Save Version
                       </Button>
                     </div>
                   </div>

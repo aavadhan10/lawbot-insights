@@ -13,14 +13,19 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast font-sans group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "group toast font-sans group-[.toaster]:bg-blue-600 group-[.toaster]:text-white group-[.toaster]:border-blue-700 group-[.toaster]:shadow-lg",
+          description: "group-[.toast]:text-white/90",
+          actionButton: "group-[.toast]:bg-white group-[.toast]:text-blue-600 group-[.toast]:hover:bg-white/90",
+          cancelButton: "group-[.toast]:bg-white/20 group-[.toast]:text-white group-[.toast]:hover:bg-white/30",
+          error: 'group-[.toaster]:bg-red-600 group-[.toaster]:text-white group-[.toaster]:border-red-700',
+          success: 'group-[.toaster]:bg-blue-600 group-[.toaster]:text-white group-[.toaster]:border-blue-700',
+          warning: 'group-[.toaster]:bg-amber-600 group-[.toaster]:text-white group-[.toaster]:border-amber-700',
+          info: 'group-[.toaster]:bg-blue-600 group-[.toaster]:text-white group-[.toaster]:border-blue-700',
         },
         style: {
-          background: 'hsl(var(--background))',
-          border: '1px solid hsl(var(--border))',
+          background: 'rgb(37, 99, 235)',
+          border: '1px solid rgb(29, 78, 216)',
+          color: 'white',
           opacity: '1',
           backdropFilter: 'none',
           WebkitBackdropFilter: 'none',
