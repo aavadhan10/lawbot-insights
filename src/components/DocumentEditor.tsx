@@ -13,6 +13,7 @@ import {
   Edit3,
   Save,
   Palette,
+  History,
   RotateCcw
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +24,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RichTextEditor, RichTextEditorRef } from "./RichTextEditor";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { DraftVersionHistory } from "./DraftVersionHistory";
 import { exportToTxt, exportToDocx, exportToPdf } from "@/utils/exportDocument";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -389,6 +392,28 @@ export const DocumentEditor = ({
             <Save className="h-4 w-4" />
             <span className="hidden sm:inline">Save Version</span>
           </Button>
+          {draftId && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 text-xs gap-1.5"
+                >
+                  <History className="h-4 w-4" />
+                  <span className="hidden sm:inline">History</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-96 bg-background border-l shadow-2xl">
+                <SheetHeader>
+                  <SheetTitle>Version History</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6">
+                  <DraftVersionHistory draftId={draftId} onRestoreVersion={(c) => setEditorContent(c?.text ?? '')} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 

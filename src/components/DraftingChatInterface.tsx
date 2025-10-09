@@ -720,7 +720,7 @@ export const DraftingChatInterface = ({
     >
       {/* Drag and Drop Overlay */}
       {isDraggingFile && (
-        <div className="absolute inset-0 z-50 bg-primary/5 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-background border-2 border-dashed border-primary rounded-lg flex items-center justify-center pointer-events-none">
             <div className="bg-background rounded-lg p-8 shadow-lg border-2 border-primary">
             <div className="flex flex-col items-center gap-3">
               <Upload className="h-12 w-12 text-primary" />
