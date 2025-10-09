@@ -358,9 +358,9 @@ export default function ContractReview() {
                   <div className="border-l-4 border-warning bg-warning/10 p-4 rounded">
                     <p className="font-medium text-warning mb-1">Large Document Notice</p>
                     <p className="text-sm">
-                      This document was large ({(reviewData.review.analysis_results as any).total_chars?.toLocaleString()} characters), 
-                      so we analyzed the first {(reviewData.review.analysis_results as any).analyzed_chars?.toLocaleString()} characters. 
-                      For complete analysis, consider breaking the document into smaller sections.
+                      This document was large ({(reviewData.review.analysis_results as any).total_chars?.toLocaleString()} characters). 
+                      Quick mode analyzed the first {(reviewData.review.analysis_results as any).analyzed_chars?.toLocaleString()} characters. 
+                      Use Thorough mode for complete analysis of large documents.
                     </p>
                   </div>
                 )}

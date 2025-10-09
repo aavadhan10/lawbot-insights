@@ -126,20 +126,32 @@ serve(async (req) => {
 
     console.log('Document fetched, length:', document.content_text?.length || 0);
 
-    // Set limits based on mode
-    const MAX_CHARS = mode === 'quick' ? 20000 : 50000;
-    const CHUNK_SIZE = mode === 'quick' ? 10000 : 15000;
-    const MODEL = mode === 'quick' ? 'google/gemini-2.5-flash-lite' : 'google/gemini-2.5-flash';
-    
+    // Set limits and behavior based on mode
+    const MODEL = 'google/gemini-2.5-flash'; // Always use flash for reliability
     let contentToAnalyze = document.content_text || '';
-    const shouldChunk = contentToAnalyze.length > 30000;
+    let wasTruncated = false;
+    const chunks: string[] = [];
     
-    if (contentToAnalyze.length > MAX_CHARS && !shouldChunk) {
-      console.log(`Document too large (${contentToAnalyze.length} chars), truncating to ${MAX_CHARS}`);
-      contentToAnalyze = contentToAnalyze.substring(0, MAX_CHARS);
+    if (mode === 'quick') {
+      // Quick mode: simple truncation, single chunk, fast
+      const MAX_CHARS = 30000;
+      if (contentToAnalyze.length > MAX_CHARS) {
+        console.log(`Quick mode: truncating ${contentToAnalyze.length} chars to ${MAX_CHARS}`);
+        contentToAnalyze = contentToAnalyze.substring(0, MAX_CHARS);
+        wasTruncated = true;
+      }
+      chunks.push(contentToAnalyze);
+    } else {
+      // Thorough mode: chunk for large docs
+      const CHUNK_SIZE = 15000;
+      if (contentToAnalyze.length > 35000) {
+        console.log(`Thorough mode: chunking ${contentToAnalyze.length} chars into ~${CHUNK_SIZE} char chunks`);
+        chunks.push(...chunkText(contentToAnalyze, CHUNK_SIZE));
+      } else {
+        chunks.push(contentToAnalyze);
+      }
     }
     
-    const chunks = shouldChunk ? chunkText(contentToAnalyze, CHUNK_SIZE) : [contentToAnalyze];
     console.log(`Processing in ${chunks.length} chunk(s) using ${MODEL} (${mode} mode)`);
 
     // Create contract review record
@@ -202,9 +214,8 @@ Be thorough and extract all issues, not just the most critical ones.`;
           
           const chunkContent = chunks[i];
           let chunkFindings: any[] = [];
-          let usedFallback = false;
           
-          // Try primary model with retries
+          // Call AI with retries
           try {
             const payload = {
               model: MODEL,
@@ -260,63 +271,19 @@ Be thorough and extract all issues, not just the most critical ones.`;
                 chunkFindings = JSON.parse(jsonMatch[0]).findings || [];
               }
             }
-          } catch (primaryError) {
-            console.error(`Chunk ${i + 1} failed with primary model, trying fast fallback:`, primaryError);
-            
-            // Fast fallback: flash-lite with reduced content
-            try {
-              const fallbackContent = chunkContent.substring(0, 10000);
-              const fallbackPayload = {
-                model: 'google/gemini-2.5-flash-lite',
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  { role: 'user', content: `Analyze this contract (quick scan):\n\n${fallbackContent}` }
-                ],
-                tools: [{
-                  type: 'function',
-                  function: {
-                    name: 'extract_clause_findings',
-                    description: 'Extract problematic clauses',
-                    parameters: {
-                      type: 'object',
-                      properties: {
-                        findings: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              clause_title: { type: 'string' },
-                              clause_text: { type: 'string' },
-                              risk_level: { type: 'string' },
-                              issue_description: { type: 'string' },
-                              recommendation: { type: 'string' },
-                              original_text: { type: 'string' },
-                              suggested_text: { type: 'string' }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }],
-                tool_choice: { type: 'function', function: { name: 'extract_clause_findings' } }
-              };
-              
-              const fallbackResponse = await callAIWithRetry('https://ai.gateway.lovable.dev/v1/chat/completions', fallbackPayload, lovableApiKey, 1);
-              const toolCall = fallbackResponse.choices?.[0]?.message?.tool_calls?.[0];
-              if (toolCall?.function?.arguments) {
-                chunkFindings = JSON.parse(toolCall.function.arguments).findings || [];
-                usedFallback = true;
-              }
-            } catch (fallbackError) {
-              console.error(`Chunk ${i + 1} fallback also failed:`, fallbackError);
-              throw new Error(`Failed to process chunk ${i + 1}: ${fallbackError}`);
+          } catch (error) {
+            console.error(`Chunk ${i + 1} failed:`, error);
+            // For quick mode on first chunk failure, just fail fast
+            if (mode === 'quick' && i === 0) {
+              throw error;
             }
+            // For thorough mode or later chunks, continue with empty findings for this chunk
+            chunkFindings = [];
           }
           
           allFindings.push(...chunkFindings);
           const chunkDuration = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
-          console.log(`Chunk ${i + 1} done in ${chunkDuration}s: ${chunkFindings.length} findings${usedFallback ? ' (fallback)' : ''}`);
+          console.log(`Chunk ${i + 1} done in ${chunkDuration}s: ${chunkFindings.length} findings`);
           
           // Update progress
           const progress = Math.round(((i + 1) / chunks.length) * 100);
@@ -376,9 +343,10 @@ Be thorough and extract all issues, not just the most critical ones.`;
               high_risk: allFindings.filter((f: any) => f.risk_level === 'high').length,
               medium_risk: allFindings.filter((f: any) => f.risk_level === 'medium').length,
               low_risk: allFindings.filter((f: any) => f.risk_level === 'low').length,
+              was_truncated: wasTruncated,
               was_chunked: chunks.length > 1,
               total_chunks: chunks.length,
-              analyzed_chars: contentToAnalyze.length,
+              analyzed_chars: chunks.reduce((sum, c) => sum + c.length, 0),
               total_chars: document.content_text?.length || 0,
               processing_time_seconds: parseFloat(totalDuration),
               mode: mode
