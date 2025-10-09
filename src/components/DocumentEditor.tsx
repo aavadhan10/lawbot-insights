@@ -49,6 +49,8 @@ interface DocumentEditorProps {
   onExport?: (format: 'txt' | 'docx' | 'pdf') => void;
   draftId?: string;
   onTitleSaved?: (title: string) => void;
+  templateContentToInsert?: string | null;
+  onTemplateInserted?: () => void;
 }
 
 export const DocumentEditor = ({ 
@@ -58,7 +60,9 @@ export const DocumentEditor = ({
   isGenerating = false,
   onExport,
   draftId,
-  onTitleSaved
+  onTitleSaved,
+  templateContentToInsert,
+  onTemplateInserted
 }: DocumentEditorProps) => {
   const [editorContent, setEditorContent] = useState(content);
   const [originalContent, setOriginalContent] = useState(content);
@@ -144,6 +148,16 @@ export const DocumentEditor = ({
     setPreviousTitle(title);
     setLastVersionTitle(title);
   }, [content, draftId, title]);
+
+  // Handle template insertion from sidebar
+  useEffect(() => {
+    if (templateContentToInsert && editorRef.current?.editor && draftId) {
+      const editor = editorRef.current.editor;
+      editor.chain().focus().insertContentAt(editor.state.doc.content.size, templateContentToInsert).run();
+      toast.success("Template inserted");
+      onTemplateInserted?.();
+    }
+  }, [templateContentToInsert, draftId, onTemplateInserted]);
 
   const getCurrentVersion = async () => {
     if (!draftId) return 1;

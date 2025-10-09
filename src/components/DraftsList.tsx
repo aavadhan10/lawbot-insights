@@ -26,9 +26,17 @@ interface DraftsListProps {
   onSelectDraft: (draftId: string, conversationId?: string) => void;
   selectedDraftId?: string;
   onRestoreVersion?: (content: any) => void;
+  onInsertTemplate?: (content: string) => void;
+  hasOpenDocument?: boolean;
 }
 
-export const DraftsList = ({ onSelectDraft, selectedDraftId, onRestoreVersion }: DraftsListProps) => {
+export const DraftsList = ({ 
+  onSelectDraft, 
+  selectedDraftId, 
+  onRestoreVersion,
+  onInsertTemplate,
+  hasOpenDocument = false
+}: DraftsListProps) => {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -284,7 +292,11 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId, onRestoreVersion }:
         open={showTemplatePreview}
         onOpenChange={setShowTemplatePreview}
         onCreateNew={() => selectedTemplate && createDocumentFromTemplate(selectedTemplate)}
-        hasCurrentDocument={false}
+        onInsertIntoCurrent={onInsertTemplate && selectedTemplate ? () => {
+          onInsertTemplate(selectedTemplate.content);
+          setShowTemplatePreview(false);
+        } : undefined}
+        hasCurrentDocument={hasOpenDocument}
       />
     </div>
   );

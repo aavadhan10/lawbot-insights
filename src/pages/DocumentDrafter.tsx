@@ -16,6 +16,7 @@ const DocumentDrafter = () => {
   const [selectedDraftId, setSelectedDraftId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
   const [currentDraftId, setCurrentDraftId] = useState<string>();
+  const [templateContentToInsert, setTemplateContentToInsert] = useState<string | null>(null);
   const { toast } = useToast();
   const { userRole } = useOrganization();
 
@@ -144,6 +145,10 @@ const DocumentDrafter = () => {
     }
   };
 
+  const handleInsertTemplate = (templateContent: string) => {
+    setTemplateContentToInsert(templateContent);
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -171,6 +176,8 @@ const DocumentDrafter = () => {
             onSelectDraft={handleSelectDraft}
             selectedDraftId={selectedDraftId}
             onRestoreVersion={handleRestoreVersion}
+            onInsertTemplate={handleInsertTemplate}
+            hasOpenDocument={!!currentDraftId}
           />
         </div>
 
@@ -184,6 +191,8 @@ const DocumentDrafter = () => {
               isGenerating={isGenerating}
               onExport={handleExport}
               draftId={currentDraftId}
+              templateContentToInsert={templateContentToInsert}
+              onTemplateInserted={() => setTemplateContentToInsert(null)}
             />
           </div>
           
