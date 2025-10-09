@@ -589,8 +589,8 @@ export const LegalChatInterface = ({
 
   return (
     <div 
-      className={`flex flex-col h-full transition-all ${
-        isDragging ? "border-2 border-primary bg-primary/5 rounded-xl" : ""
+      className={`flex flex-col h-full glass-card rounded-2xl shadow-xl border transition-all ${
+        isDragging ? "border-2 border-primary bg-primary/5" : ""
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
