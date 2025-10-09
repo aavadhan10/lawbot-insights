@@ -69,7 +69,7 @@ export const DraftVersionHistory = ({ draftId, onRestoreVersion }: DraftVersionH
       </Button>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent className="w-96 bg-background">
+        <SheetContent className="w-96 bg-background/95 backdrop-blur-xl border-l shadow-2xl">
           <SheetHeader>
             <SheetTitle>Version History</SheetTitle>
           </SheetHeader>

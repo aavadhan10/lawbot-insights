@@ -4,7 +4,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Trash2, File } from "lucide-react";
+import { FileText, Trash2, File, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -69,14 +69,55 @@ export const DraftsList = ({ onSelectDraft, selectedDraftId }: DraftsListProps) 
     }
   };
 
+  const createNewDocument = async () => {
+    if (!userRole?.organization.id) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const timestamp = new Date().toLocaleString();
+      const { data, error } = await supabase
+        .from('document_drafts')
+        .insert({
+          title: `Untitled Document - ${timestamp}`,
+          document_type: 'General',
+          content: { text: '', changes: [] },
+          user_id: user.id,
+          organization_id: userRole.organization.id,
+          current_version: 1,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      toast.success('New document created');
+      loadDrafts();
+      onSelectDraft(data.id);
+    } catch (error) {
+      console.error('Error creating document:', error);
+      toast.error('Failed to create document');
+    }
+  };
+
   if (loading) {
     return <div className="p-4 text-sm text-muted-foreground">Loading drafts...</div>;
   }
 
   return (
     <div className="h-full flex flex-col border-r bg-background">
-      <div className="p-4 border-b">
+      <div className="p-4 border-b space-y-3">
         <h2 className="text-lg font-semibold">Documents</h2>
+        <Button 
+          onClick={createNewDocument}
+          className="w-full"
+          variant="default"
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
+          New Document
+        </Button>
       </div>
       
       <Tabs defaultValue="drafts" className="flex-1 flex flex-col">

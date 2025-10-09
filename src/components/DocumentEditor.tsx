@@ -25,6 +25,7 @@ import {
 import { RichTextEditor, RichTextEditorRef } from "./RichTextEditor";
 import { exportToTxt, exportToDocx, exportToPdf } from "@/utils/exportDocument";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
 interface Change {
   type: 'deletion' | 'insertion';
@@ -68,6 +69,8 @@ export const DocumentEditor = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [textColor, setTextColor] = useState("#000000");
   const [isDragging, setIsDragging] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const editorRef = useRef<RichTextEditorRef>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -144,9 +147,10 @@ export const DocumentEditor = ({
     }
   };
 
-  const saveDraft = async () => {
+  const saveDraft = async (showToast = true) => {
     if (!draftId || !editorContent) return;
 
+    setIsSaving(true);
     try {
       const { error } = await supabase
         .from('document_drafts')
@@ -158,17 +162,33 @@ export const DocumentEditor = ({
         .eq('id', draftId);
 
       if (!error) {
-        toast.success('Draft saved');
+        if (showToast) toast.success('Draft saved');
         setOriginalContent(editorContent);
+        setLastSaved(new Date());
       }
     } catch (error) {
       console.error('Save draft error:', error);
-      toast.error('Failed to save draft');
+      if (showToast) toast.error('Failed to save draft');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const saveVersion = async () => {
-    if (!draftId || !editorContent) return;
+  // Auto-save with debouncing
+  useEffect(() => {
+    if (!draftId || !editorContent || editorContent === originalContent) return;
+
+    const timer = setTimeout(async () => {
+      await saveDraft(false);
+      // Also create a version snapshot automatically
+      await saveVersionSnapshot();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [editorContent, draftId]);
+
+  const saveVersionSnapshot = async () => {
+    if (!draftId || !editorContent || editorContent === originalContent) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -186,8 +206,6 @@ export const DocumentEditor = ({
 
     if (!error) {
       setCurrentVersion(nextVersion);
-      setOriginalContent(editorContent);
-      toast.success('New version saved');
       loadVersions();
     }
   };
@@ -319,11 +337,19 @@ export const DocumentEditor = ({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {isSaving && (
+            <span className="text-xs text-muted-foreground">Saving...</span>
+          )}
+          {!isSaving && lastSaved && (
+            <span className="text-xs text-muted-foreground">
+              Saved {formatDistanceToNow(lastSaved, { addSuffix: true })}
+            </span>
+          )}
           <DropdownMenu open={showVersions} onOpenChange={setShowVersions}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 text-xs gap-1.5">
+              <Button variant="ghost" size="sm" className="h-9 text-xs gap-1.5" disabled={!draftId}>
                 <History className="h-4 w-4" />
-                <span className="hidden sm:inline">Version {currentVersion}</span>
+                <span className="hidden sm:inline">Version History</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -345,26 +371,6 @@ export const DocumentEditor = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-9 text-xs"
-            onClick={saveDraft}
-            disabled={!draftId || isGenerating}
-          >
-            <Save className="h-3.5 w-3.5 mr-1" />
-            <span className="hidden sm:inline">Save Draft</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-9 text-xs"
-            onClick={saveVersion}
-            disabled={!draftId || isGenerating || editorContent === originalContent}
-          >
-            <History className="h-3.5 w-3.5 mr-1" />
-            <span className="hidden sm:inline">Save Version</span>
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
